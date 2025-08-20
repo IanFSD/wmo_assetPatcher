@@ -1,0 +1,24 @@
+# C
+./bin
+obj/*
+*.ogg
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+
+# Build output
+dist/
+build/
+out/
+
+# IDE files
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
