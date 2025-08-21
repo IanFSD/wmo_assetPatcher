@@ -3,9 +3,6 @@
 This is an asset patcher for the Unity game **Whisper Mountain Outbreak**.
 
 ## Prerequisites
-
-- [.NET SDK 7.0+](https://dotnet.microsoft.com/download)
-
 ## Build & Compile
 
 1. **Clone the repository:**

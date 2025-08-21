@@ -1,7 +1,7 @@
-# C
-./bin
-obj/*
+
 *.ogg
+
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -14,6 +14,9 @@ Thumbs.db
 dist/
 build/
 out/
+bin/
+obj/
+
 
 # IDE files
 .vscode/
