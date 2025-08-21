@@ -125,7 +125,6 @@ internal static class Program
 */
             // Confirm before patching
             Console.WriteLine("Ready to start patching. This will modify game files.");
-            Console.WriteLine("Backups will be created automatically.");
             Console.Write("Continue? (Y/N): ");
             
             var response = Console.ReadKey().KeyChar;
@@ -156,7 +155,6 @@ internal static class Program
             {
                 Console.WriteLine();
                 Console.WriteLine(" Patching failed. Check the logs above for details.");
-                Console.WriteLine("Your game files remain unchanged.");
             }
 
             Console.WriteLine();
