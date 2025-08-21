@@ -15,20 +15,20 @@ public static class AssetPatcher
             Logger.Log(LogLevel.Info, $"Starting patching process...");
             Console.WriteLine(" Initializing patcher...");
             //TODO: DO Work on BackupManager
-            
+
             // Prepare mods data from resources
             Logger.Log(LogLevel.Info, $"Loading data...");
             Console.WriteLine(" Loading data...");
-            var modsData = ModsDataManager.ModsData;
-            if (modsData.Length == 0)
+            var modsCollection = ModsDataManager.GetModsCollection();
+            if (modsCollection.TotalCount == 0)
             {
                 Logger.Log(LogLevel.Warning, $"No files found to process");
                 Console.WriteLine("No files found to process");
                 return false;
             }
 
-            Logger.Log(LogLevel.Info, $"Found {modsData.Length} files to apply: {string.Join(", ", modsData)}");
-            Console.WriteLine($"Found {modsData.Length} files to apply");
+            Logger.Log(LogLevel.Info, $"Found {modsCollection.TotalCount} files to apply - {modsCollection.AudioMods.Count} audio, {modsCollection.SpriteMods.Count} sprites");
+            Console.WriteLine($"Found {modsCollection.TotalCount} files to apply");
 
             // Find assets files in the game directory
             Logger.Log(LogLevel.Info, $"Scanning game directory for assets files...");
@@ -49,7 +49,7 @@ public static class AssetPatcher
                 Logger.Log(LogLevel.Info, $"Processing assets file: {fileName}");
                 Console.WriteLine($"Processing: {fileName}");
                 
-                var patchedCount = PatchAudioAssetsInFile(assetsFile, modsData);
+                var patchedCount = PatchAudioAssetsInFile(assetsFile, modsCollection);
                 if (patchedCount > 0)
                 {
                     patchedAny = true;
@@ -75,7 +75,7 @@ public static class AssetPatcher
             {
                 Logger.Log(LogLevel.Warning, $"No assets were patched. Asset names might not match mod files.");
                 Console.WriteLine($"No assets were patched.");
-                Console.WriteLine($"Check if your mod file names match the game's asset names.");
+                Console.WriteLine($"Check if your file names match the game's asset names.");
                 return false;
             }
         }
@@ -151,32 +151,35 @@ public static class AssetPatcher
     /// Processes ONE asset at a time and saves immediately to prevent data corruption
     /// </summary>
     /// <param name="assetsFilePath">Path to the assets file</param>
-    /// <param name="modsData">Array of asset names to replace</param>
+    /// <param name="modsCollection">Collection of mods to apply</param>
     /// <returns>Number of assets successfully patched</returns>
-    private static int PatchAudioAssetsInFile(string assetsFilePath, string[] modsData)
+    private static int PatchAudioAssetsInFile(string assetsFilePath, ModsCollection modsCollection)
     {
         int totalPatchedCount = 0;
         var fileName = Path.GetFileName(assetsFilePath);
         
         Logger.Log(LogLevel.Debug, $"Starting individual asset processing for: {fileName}");
         
-        // Process each mod individually to prevent corruption
-        foreach (var assetName in modsData)
+        // Process each audio mod individually to prevent corruption
+        foreach (var audioMod in modsCollection.AudioMods)
         {
-            var patchResult = ProcessSingleAssetInFile(assetsFilePath, assetName);
+            var patchResult = ProcessSingleAssetInFile(assetsFilePath, audioMod.AssetName);
             if (patchResult.Success)
             {
                 totalPatchedCount++;
-                Console.WriteLine($"         →  Patched '{assetName}' in {fileName}");
-                Logger.Log(LogLevel.Info, $"✓ Successfully patched and saved '{assetName}' in {fileName}");
+                Console.WriteLine($"         →  Patched '{audioMod.AssetName}' in {fileName}");
+                Logger.Log(LogLevel.Info, $"✓ Successfully patched and saved '{audioMod.AssetName}' in {fileName}");
             }
             else if (patchResult.AssetFound)
             {
-                Console.WriteLine($"         →  Failed to patch '{assetName}' in {fileName}");
-                Logger.Log(LogLevel.Error, $"✗ Failed to patch '{assetName}' in {fileName}: {patchResult.ErrorMessage}");
+                Console.WriteLine($"         →  Failed to patch '{audioMod.AssetName}' in {fileName}");
+                Logger.Log(LogLevel.Error, $"✗ Failed to patch '{audioMod.AssetName}' in {fileName}: {patchResult.ErrorMessage}");
             }
             // If asset not found, we continue silently (it might be in another assets file)
         }
+        
+        // TODO: Add support for sprite mods later
+        // For now, we only process audio mods
         
         return totalPatchedCount;
     }

@@ -1,14 +1,14 @@
 # Whisper Mountain Outbreak AssetPatcher
 
-This is an asset patcher for the Unity game **Whisper Mountain Outbreak**.
+This is an asset patcher for the Survival Horror game **Whisper Mountain Outbreak**.
+Made specifically for Resident Evil: Retribution.  
 
-## Prerequisites
 ## Build & Compile
 
 1. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/yourusername/wmo_assetPatcher.git
+    git clone https://github.com/IanFSD/wmo_assetPatcher.git
     cd wmo_assetPatcher
     ```
 

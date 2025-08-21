@@ -15,7 +15,7 @@ public static class Logger {
     static Logger() {
         var logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
         Directory.CreateDirectory(logDirectory);
-        ExeLogFilePath = Path.Combine(logDirectory, "Whisker Mountain Outbreak.log");
+        ExeLogFilePath = Path.Combine(logDirectory,"Whisker Mountain Outbreak.log");
         File.Delete(ExeLogFilePath);
     }
 

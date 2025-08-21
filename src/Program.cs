@@ -9,7 +9,7 @@ namespace WMO;
 internal static class Program
 {
     private const string DEFAULT_GAME_PATH = @"C:\Program Files (x86)\Steam\steamapps\common\Whisper Mountain Outbreak\Whisper Mountain Outbreak_Data";
-    
+
     [STAThread]
     private static void Main()
     {
@@ -28,11 +28,11 @@ internal static class Program
             var modsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mods");
             Console.WriteLine($"Looking for mods in: {modsPath}");
             Console.WriteLine();
-            
-            var modsData = ModsDataManager.ModsData;
-            if (modsData.Length == 0)
+
+            var modsCollection = ModsDataManager.GetModsCollection();
+            if (modsCollection.TotalCount == 0)
             {
-                Console.WriteLine("❌ No mod files found!");
+                Console.WriteLine(" No mod files found!");
                 Console.WriteLine($"Please place your audio mod files (.ogg) in the mods folder:");
                 Console.WriteLine($"{modsPath}");
                 Console.WriteLine();
@@ -44,10 +44,22 @@ internal static class Program
                 return;
             }
 
-            Console.WriteLine($"✅ Found {modsData.Length} mod files:");
-            foreach (var mod in modsData)
+            Console.WriteLine($" Found {modsCollection.TotalCount} mod files:");
+            if (modsCollection.AudioMods.Count > 0)
             {
-                Console.WriteLine($"   • {mod}");
+                Console.WriteLine("   Audio mods:");
+                foreach (var mod in modsCollection.AudioMods)
+                {
+                    Console.WriteLine($"      • {mod.AssetName}");
+                }
+            }
+            if (modsCollection.SpriteMods.Count > 0)
+            {
+                Console.WriteLine("   Sprite mods:");
+                foreach (var mod in modsCollection.SpriteMods)
+                {
+                    Console.WriteLine($"      • {mod.AssetName}");
+                }
             }
             Console.WriteLine();
 
@@ -55,7 +67,7 @@ internal static class Program
             string gamePath = GetGamePath();
             if (string.IsNullOrEmpty(gamePath))
             {
-                Console.WriteLine("❌ No valid game path provided. Exiting...");
+                Console.WriteLine(" No valid game path provided. Exiting...");
                 Console.WriteLine("Press any key to exit...");
                 Console.ReadKey();
                 return;
@@ -67,12 +79,50 @@ internal static class Program
             // Verify the path exists and contains the game
             if (!VerifyGamePath(gamePath))
             {
-                Console.WriteLine("❌ The specified path doesn't appear to contain Whisper Mountain Outbreak.");
+                Console.WriteLine(" The specified path doesn't appear to contain Whisper Mountain Outbreak.");
                 Console.WriteLine("Press any key to exit...");
                 Console.ReadKey();
                 return;
             }
 
+            // Generate asset list for user reference
+            Console.WriteLine();
+        //TODO: This should be a debug option, not always run
+/*            var assetListPath = Path.Combine(modsPath, "assetListNames.json");
+            bool isFirstRun = !File.Exists(assetListPath);
+            
+            if (isFirstRun)
+            {
+                Console.WriteLine(" First run detected! Generating complete asset list...");
+                Console.WriteLine("   This will help you identify asset names for modding.");
+            }
+            else
+            {
+                Console.WriteLine("Updating asset list for reference...");
+            }
+            
+            bool assetListGenerated = AssetListGenerator.GenerateAssetList(gamePath, assetListPath);
+            
+            if (assetListGenerated)
+            {
+                if (isFirstRun)
+                {
+                    Console.WriteLine($" Asset list created for the first time!");
+                    Console.WriteLine($" Check 'assetListNames.json' in the mods folder to find asset names.");
+                    Console.WriteLine($"   This file contains all available assets you can replace.");
+                }
+                else
+                {
+                    Console.WriteLine($" Asset list updated: assetListNames.json");
+                    Console.WriteLine($"   Use this file to find the correct asset names for your mods.");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"⚠️  Could not generate asset list, but patching can still proceed.");
+            }
+            Console.WriteLine();
+*/
             // Confirm before patching
             Console.WriteLine("Ready to start patching. This will modify game files.");
             Console.WriteLine("Backups will be created automatically.");
@@ -99,13 +149,13 @@ internal static class Program
             if (success)
             {
                 Console.WriteLine();
-                Console.WriteLine("✅ Patching completed successfully!");
+                Console.WriteLine(" Patching completed successfully!");
                 Console.WriteLine("Your game has been modded. You can now run Whisper Mountain Outbreak.");
             }
             else
             {
                 Console.WriteLine();
-                Console.WriteLine("❌ Patching failed. Check the logs above for details.");
+                Console.WriteLine(" Patching failed. Check the logs above for details.");
                 Console.WriteLine("Your game files remain unchanged.");
             }
 
@@ -117,7 +167,7 @@ internal static class Program
         {
             Logger.Log(LogLevel.Error, $"Unhandled exception in main: {ex}");
             Console.WriteLine();
-            Console.WriteLine($"❌ Fatal error: {ex.Message}");
+            Console.WriteLine($" Fatal error: {ex.Message}");
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
         }
