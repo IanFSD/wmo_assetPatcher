@@ -1,6 +1,6 @@
 # Whisper Mountain Outbreak AssetPatcher
 
-This is an asset patcher for the Survival Horror game **Whisper Mountain Outbreak**.
+An asset patcher for the Survival Horror game **Whisper Mountain Outbreak**.
 Made specifically for Resident Evil: Retribution.  
 
 ## Usage
