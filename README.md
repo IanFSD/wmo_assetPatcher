@@ -1,9 +1,10 @@
 # Whisper Mountain Outbreak AssetPatcher
 
-This is an asset patcher for the Survival Horror game **Whisper Mountain Outbreak**.
+An asset patcher for the Survival Horror game **Whisper Mountain Outbreak**.
 Made specifically for Resident Evil: Retribution.  
 
 ## Usage
+
 While the patcher is made for RE: Retribution, it could be used for editing any Audio and texture/sprite from the game.
 What you need to do is to add the file you want to add with the name of the asset you want to modify
 
@@ -14,21 +15,27 @@ FILE NAMING CONVENTION:
 
 SUPPORTED FORMATS:
 Audio:
+
 - .ogg (recommended)
 - .wav
 - .mp3
 - .m4a
 
 Sprites/Textures:
+
 - .png (recommended)
 - .jpg, .jpeg
 - .bmp
 - .tga
 
-
 After placing your mod files here, run the patcher to apply them to the game.
 
 ## Build & Compile
+
+### Prerequisites
+
+- [.NET SDK 7.0+](https://dotnet.microsoft.com/download)
+
 1. **Clone the repository:**
 
     ```bash
