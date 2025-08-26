@@ -1,0 +1,12 @@
+well rn we need to add a SQLite database
+i was thinking of having 2 tables for it: Mod & Asset.
+
+
+Mods being new things being put in and assets being whatever is initially read yeah?
+Name / Path ID / Class ID Type Number / AssetPath / JSON / Last Changed
+- Mods also should have a String "extensionFile" which saves the extension (if it is a .ogg/mp4/png etc)
+- Assets should have the same and also have a boolean with "modded" state (so it knows if the asset is being modified or not)
+both tables should have a key for a Join
+
+Here is the package for SQLite
+dotnet add package Microsoft.Data.Sqlite --version 9.0.8
