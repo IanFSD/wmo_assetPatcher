@@ -13,11 +13,12 @@ public static class Logger {
     private static readonly List<string> _logMessages = new();
 
     static Logger() {
-        var logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
-        Directory.CreateDirectory(logDirectory);
-        ExeLogFilePath = Path.Combine(logDirectory,"Whisker Mountain Outbreak.log");
-        File.Delete(ExeLogFilePath);
-    }
+    var logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
+    Directory.CreateDirectory(logDirectory);
+    var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+    ExeLogFilePath = Path.Combine(logDirectory, $"Whisker Mountain Outbreak_{timestamp}.log");
+    File.Delete(ExeLogFilePath);
+}
 
     public static string GetLogPath() => GetInstallLogPath() ?? ExeLogFilePath;
 
@@ -58,7 +59,8 @@ public static class Logger {
         }
     }
 
-    public static void Log(LogLevel lvl, [InterpolatedStringHandlerArgument("lvl")] LogInterpolatedStringHandler handler) {
+    public static void Log(LogLevel lvl, [InterpolatedStringHandlerArgument("lvl")] LogInterpolatedStringHandler handler)
+    {
         if (lvl > SettingsHolder.LogLevel || SettingsHolder.LogLevel == LogLevel.None)
             return;
 

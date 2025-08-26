@@ -8,8 +8,6 @@ Made specifically for Resident Evil: Retribution.
 While the patcher is made for RE: Retribution, it could be used for editing any Audio and texture/sprite from the game.
 What you need to do is to add the file you want to add with the name of the asset you want to modify
 
-FILE NAMING CONVENTION:
-
 - Example: bgm-lobby.ogg will replace the 'bgm-lobby' asset in the game.
 - Example: head-default-0.png will replace the 'head-default-0' sprite.
 

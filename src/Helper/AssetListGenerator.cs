@@ -27,7 +27,7 @@ public static class AssetListGenerator
 
             var assetList = new AssetListData();
             var assetsFiles = AssetFileFinder.FindAssetsFiles(gamePath, recursive: true);
-            
+
             Logger.Log(LogLevel.Info, $"Found {assetsFiles.Length} asset files to scan");
             Console.WriteLine($"   Scanning {assetsFiles.Length} asset files...");
 
@@ -38,7 +38,7 @@ public static class AssetListGenerator
             {
                 var fileName = Path.GetFileName(assetsFile);
                 Logger.Log(LogLevel.Debug, $"Scanning assets file: {fileName}");
-                
+
                 try
                 {
                     var fileAssets = ScanSingleAssetFile(assetsFile);
@@ -48,7 +48,7 @@ public static class AssetListGenerator
                         totalAssets += fileAssets.TotalAssets;
                     }
                     processedFiles++;
-                    
+
                     // Show progress every few files
                     if (processedFiles % 5 == 0 || processedFiles == assetsFiles.Length)
                     {
@@ -82,7 +82,7 @@ public static class AssetListGenerator
             Logger.Log(LogLevel.Info, $"Asset list generated successfully: {totalAssets} total assets in {processedFiles} files");
             Console.WriteLine($" Asset list created: {totalAssets} assets found");
             Console.WriteLine($"    Saved to: {Path.GetFileName(outputPath)}");
-            
+
             return true;
         }
         catch (Exception ex)
@@ -110,14 +110,14 @@ public static class AssetListGenerator
             var assetFileData = new AssetFileData { FileName = fileName };
 
             manager = new AssetsManager();
-            fileInst = manager.LoadAssetsFile(assetsFilePath);
 
-            // Try to load class database (optional but helpful)
-            TryLoadClassDatabase(manager, fileInst.file);
+            var classDataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "lz4.tpk");
+            manager.LoadClassPackage(classDataPath);
+            fileInst = manager.LoadAssetsFile(assetsFilePath);
+            manager.LoadClassDatabaseFromPackage(fileInst.file.Metadata.UnityVersion);
 
             // Get all assets in the file
-            var allAssets = fileInst.file.GetAssetsOfType(AssetClassID.MonoBehaviour)
-                .Concat(fileInst.file.GetAssetsOfType(AssetClassID.AudioClip))
+            var allAssets = fileInst.file.GetAssetsOfType(AssetClassID.AudioClip)
                 .Concat(fileInst.file.GetAssetsOfType(AssetClassID.Texture2D))
                 .Concat(fileInst.file.GetAssetsOfType(AssetClassID.Sprite))
                 .ToList();
@@ -181,65 +181,33 @@ public static class AssetListGenerator
         }
     }
 
+
     /// <summary>
-    /// Attempts to load class database for better asset reading
+    /// Root data structure for the asset list JSON
     /// </summary>
-    private static bool TryLoadClassDatabase(AssetsManager manager, AssetsFile assetsFile)
+    public class AssetListData
     {
-        try
-        {
-            var unityVersion = assetsFile.Metadata.UnityVersion;
-            
-            string[] possibleTpkPaths = {
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lz4.tpk"),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "lz4.tpk"),
-                Path.Combine(Environment.CurrentDirectory, "lz4.tpk")
-            };
+        public string GeneratedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        public string Version { get; set; } = "1.0";
+        public string Description { get; set; } = "Complete list of all assets found in the game files";
+        public List<AssetFileData> AssetFiles { get; set; } = new();
 
-            foreach (var tpkPath in possibleTpkPaths)
-            {
-                if (File.Exists(tpkPath))
-                {
-                    manager.LoadClassPackage(tpkPath);
-                    manager.LoadClassDatabaseFromPackage(unityVersion);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
+        public int TotalAudioAssets => AssetFiles.Sum(f => f.AudioAssets.Count);
+        public int TotalSpriteAssets => AssetFiles.Sum(f => f.SpriteAssets.Count);
+        public int TotalOtherAssets => AssetFiles.Sum(f => f.OtherAssets.Count);
+        public int TotalAssets => TotalAudioAssets + TotalSpriteAssets + TotalOtherAssets;
     }
-}
 
-/// <summary>
-/// Root data structure for the asset list JSON
-/// </summary>
-public class AssetListData
-{
-    public string GeneratedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-    public string Version { get; set; } = "1.0";
-    public string Description { get; set; } = "Complete list of all assets found in the game files";
-    public List<AssetFileData> AssetFiles { get; set; } = new();
+    /// <summary>
+    /// Data structure representing assets in a single assets file
+    /// </summary>
+    public class AssetFileData
+    {
+        public string FileName { get; set; } = string.Empty;
+        public List<string> AudioAssets { get; set; } = new();
+        public List<string> SpriteAssets { get; set; } = new();
+        public List<string> OtherAssets { get; set; } = new();
 
-    public int TotalAudioAssets => AssetFiles.Sum(f => f.AudioAssets.Count);
-    public int TotalSpriteAssets => AssetFiles.Sum(f => f.SpriteAssets.Count);
-    public int TotalOtherAssets => AssetFiles.Sum(f => f.OtherAssets.Count);
-    public int TotalAssets => TotalAudioAssets + TotalSpriteAssets + TotalOtherAssets;
-}
-
-/// <summary>
-/// Data structure representing assets in a single assets file
-/// </summary>
-public class AssetFileData
-{
-    public string FileName { get; set; } = string.Empty;
-    public List<string> AudioAssets { get; set; } = new();
-    public List<string> SpriteAssets { get; set; } = new();
-    public List<string> OtherAssets { get; set; } = new();
-
-    public int TotalAssets => AudioAssets.Count + SpriteAssets.Count + OtherAssets.Count;
+        public int TotalAssets => AudioAssets.Count + SpriteAssets.Count + OtherAssets.Count;
+    }
 }

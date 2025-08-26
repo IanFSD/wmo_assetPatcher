@@ -84,7 +84,6 @@ internal static class Program
                 Console.ReadKey();
                 return;
             }
-
             // Generate asset list for user reference
             Console.WriteLine();
         //TODO: This should be a debug option, not always run
@@ -246,7 +245,7 @@ internal static class Program
                 }
             }
 
-            Console.WriteLine("✅ Game directory appears to be valid.");
+            Console.WriteLine("Game directory appears to be valid.");
             return true;
         }
         catch (Exception ex)
