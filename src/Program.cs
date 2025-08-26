@@ -84,7 +84,6 @@ internal static class Program
                 Console.ReadKey();
                 return;
             }
-*/
             // Generate asset list for user reference
             Console.WriteLine();
         //TODO: This should be a debug option, not always run
