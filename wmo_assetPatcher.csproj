@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+       <ApplicationIcon>src/Resources\RER_Icon.ico</ApplicationIcon>
     <TargetFramework>net9.0</TargetFramework>
      <LangVersion>latestmajor</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,6 +10,7 @@
     <DebugType Condition="'$(Configuration)' == 'Release'">None</DebugType>
     <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <UserSecretsId>bf391776-b0ea-4ce2-9329-96fe36f7fb8b</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
