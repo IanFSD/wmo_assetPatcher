@@ -36,8 +36,8 @@ internal static class Program
                 Console.WriteLine($"Please place your audio mod files (.ogg) in the mods folder:");
                 Console.WriteLine($"{modsPath}");
                 Console.WriteLine();
-                Console.WriteLine("File naming: Your files should start with 'RE' + asset name");
-                Console.WriteLine("Example: REbgm-lobby.ogg will replace 'bgm-lobby' in the game");
+                Console.WriteLine("File naming: Your files should be named with the name of the asset you want to modify");
+                Console.WriteLine("Example: bgm-lobby.ogg will replace 'bgm-lobby' in the game");
                 Console.WriteLine();
                 Console.WriteLine("Press any key to exit...");
                 Console.ReadKey();
@@ -86,42 +86,7 @@ internal static class Program
             }
             // Generate asset list for user reference
             Console.WriteLine();
-        //TODO: This should be a debug option, not always run
-/*            var assetListPath = Path.Combine(modsPath, "assetListNames.json");
-            bool isFirstRun = !File.Exists(assetListPath);
-            
-            if (isFirstRun)
-            {
-                Console.WriteLine(" First run detected! Generating complete asset list...");
-                Console.WriteLine("   This will help you identify asset names for modding.");
-            }
-            else
-            {
-                Console.WriteLine("Updating asset list for reference...");
-            }
-            
-            bool assetListGenerated = AssetListGenerator.GenerateAssetList(gamePath, assetListPath);
-            
-            if (assetListGenerated)
-            {
-                if (isFirstRun)
-                {
-                    Console.WriteLine($" Asset list created for the first time!");
-                    Console.WriteLine($" Check 'assetListNames.json' in the mods folder to find asset names.");
-                    Console.WriteLine($"   This file contains all available assets you can replace.");
-                }
-                else
-                {
-                    Console.WriteLine($" Asset list updated: assetListNames.json");
-                    Console.WriteLine($"   Use this file to find the correct asset names for your mods.");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"⚠️  Could not generate asset list, but patching can still proceed.");
-            }
-            Console.WriteLine();
-*/
+      
             // Confirm before patching
             Console.WriteLine("Ready to start patching. This will modify game files.");
             Console.Write("Continue? (Y/N): ");
@@ -142,7 +107,7 @@ internal static class Program
             Console.WriteLine("Starting patching process...");
             Console.WriteLine();
 
-            bool success = WMO.AssetPatcher.AssetPatcher.TryPatch(gamePath);
+            bool success = WMO.AssetPatcher.AssetPatcher.TryPatch(DEFAULT_GAME_PATH);
 
             if (success)
             {
@@ -158,7 +123,7 @@ internal static class Program
 
             Console.WriteLine();
             Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
+           Console.ReadKey();
         }
         catch (Exception ex)
         {
@@ -186,11 +151,9 @@ internal static class Program
         var useDefault = char.ToUpper(Console.ReadKey().KeyChar) == 'Y';
         Console.WriteLine();
         Console.WriteLine();
-        
-        if (useDefault)
-        {
-            return DEFAULT_GAME_PATH;
-        }
+
+        return useDefault ? DEFAULT_GAME_PATH : string.Empty;
+
         
         Console.WriteLine("Please enter the path to your game's data directory:");
         Console.WriteLine("(This should end with 'Whisper Mountain Outbreak_Data')");

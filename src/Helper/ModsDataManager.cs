@@ -365,6 +365,8 @@ public abstract class ModBase
     public string FilePath { get; set; } = string.Empty;
     public string RelativePath { get; set; } = string.Empty;
     public string OriginalFileName { get; set; } = string.Empty;
+
+    public string FileExtension => Path.GetExtension(FilePath).ToLowerInvariant();
 }
 
 /// <summary>
@@ -372,7 +374,7 @@ public abstract class ModBase
 /// </summary>
 public class AudioMod : ModBase
 {
-    public override string ToString() => $"Audio: {AssetName} ({Path.GetFileName(FilePath)})";
+    public override string ToString() => $"Audio: {AssetName} ({Path.GetFileName(FilePath)}, {FileExtension})";
 }
 
 /// <summary>

@@ -11,20 +11,20 @@ What you need to do is to add the file you want to add with the name of the asse
 - Example: bgm-lobby.ogg will replace the 'bgm-lobby' asset in the game.
 - Example: head-default-0.png will replace the 'head-default-0' sprite.
 
+For getting all the asset names, i'll leave it up to you to find it yourself with a tool like [AssetRipper](https://github.com/AssetRipper/AssetRipper)
 SUPPORTED FORMATS:
 Audio:
 
-- .ogg (recommended)
+- .ogg
 - .wav
-- .mp3
-- .m4a
+- .mp3 (not recommended)
 
 Sprites/Textures:
 
-- .png (recommended)
-- .jpg, .jpeg
-- .bmp
-- .tga
+- .png
+- .jpg
+- .jpeg
+
 
 After placing your mod files here, run the patcher to apply them to the game.
 
