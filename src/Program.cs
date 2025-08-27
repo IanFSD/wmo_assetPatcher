@@ -107,7 +107,7 @@ internal static class Program
             Console.WriteLine("Starting patching process...");
             Console.WriteLine();
 
-            bool success = WMO.AssetPatcher.AssetPatcher.TryPatch(DEFAULT_GAME_PATH);
+            bool success = WMO.AssetPatcher.AssetPatcher.TryPatch(gamePath);
 
             if (success)
             {
