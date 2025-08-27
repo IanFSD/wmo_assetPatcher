@@ -152,9 +152,12 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine();
 
-        return useDefault ? DEFAULT_GAME_PATH : string.Empty;
+        if (useDefault)
+        {
+            Console.WriteLine("Using default game path.");
+            return DEFAULT_GAME_PATH;
+        }
 
-        
         Console.WriteLine("Please enter the path to your game's data directory:");
         Console.WriteLine("(This should end with 'Whisper Mountain Outbreak_Data')");
         Console.Write("Path: ");
