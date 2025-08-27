@@ -99,26 +99,16 @@ public static class ModsDataManager
     {
         try
         {
-            // Remove "RE" prefix if it exists (case-insensitive)
-            var assetName = fileName;
-            if (fileName.StartsWith("RE", StringComparison.OrdinalIgnoreCase))
-            {
-                assetName = fileName.Substring(2);
-                Logger.Log(LogLevel.Debug, $"Processed audio mod file: {fileName} -> {assetName}");
-            }
-            else if (fileName.StartsWith("Re", StringComparison.OrdinalIgnoreCase))
-            {
-                assetName = fileName.Substring(2);
-                Logger.Log(LogLevel.Debug, $"Processed audio mod file: {fileName} -> {assetName}");
-            }
-            else
-            {
-                Logger.Log(LogLevel.Warning, $"Audio file '{fileName}' doesn't start with 'RE' prefix, using as-is");
-            }
-
+            // Process the filename to extract the asset name
+            var assetName = ProcessModFileName(fileName);
             if (string.IsNullOrEmpty(assetName))
+            {
+                Logger.Log(LogLevel.Warning, $"Could not determine asset name from file: {fileName}");
                 return null;
+            }
 
+            Logger.Log(LogLevel.Debug, $"Processed '{fileName}' -> asset name: '{assetName}'");
+            
             return new AudioMod
             {
                 AssetName = assetName,
@@ -141,26 +131,16 @@ public static class ModsDataManager
     {
         try
         {
-            // Remove "RE" prefix if it exists (case-insensitive)
-            var assetName = fileName;
-            if (fileName.StartsWith("RE", StringComparison.OrdinalIgnoreCase))
-            {
-                assetName = fileName.Substring(2);
-                Logger.Log(LogLevel.Debug, $"Processed sprite mod file: {fileName} -> {assetName}");
-            }
-            else if (fileName.StartsWith("Re", StringComparison.OrdinalIgnoreCase))
-            {
-                assetName = fileName.Substring(2);
-                Logger.Log(LogLevel.Debug, $"Processed sprite mod file: {fileName} -> {assetName}");
-            }
-            else
-            {
-                Logger.Log(LogLevel.Warning, $"Sprite file '{fileName}' doesn't start with 'RE' prefix, using as-is");
-            }
-
+            // Process the filename to extract the asset name
+            var assetName = ProcessModFileName(fileName);
             if (string.IsNullOrEmpty(assetName))
+            {
+                Logger.Log(LogLevel.Warning, $"Could not determine asset name from file: {fileName}");
                 return null;
+            }
 
+            Logger.Log(LogLevel.Debug, $"Processed '{fileName}' -> asset name: '{assetName}'");
+            
             return new SpriteMod
             {
                 AssetName = assetName,
@@ -177,7 +157,7 @@ public static class ModsDataManager
     }
 
     /// <summary>
-    /// Gets the file path for a mod by its asset name
+    /// Gets the file path for a mod by its asset name, preferring OGG format for audio
     /// </summary>
     /// <param name="assetName">The name of the asset to replace</param>
     /// <returns>Full path to the mod file, or null if not found</returns>
@@ -188,33 +168,33 @@ public static class ModsDataManager
             if (!Directory.Exists(ResourcesPath))
                 return null;
 
-            // All supported extensions
-            var supportedExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a", ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
-            
-            // Look for files that start with "RE" + assetName with any supported extension
-            foreach (var extension in supportedExtensions)
-            {
-                var possibleFiles = new[]
-                {
-                    $"RE{assetName}{extension}",
-                    $"Re{assetName}{extension}",
-                    $"{assetName}{extension}"
-                };
+            // Prioritize formats: OGG first for audio (best compatibility), then others
+            var audioExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a" };
+            var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
+            var allExtensions = audioExtensions.Concat(imageExtensions).ToArray();
 
-                foreach (var possibleFile in possibleFiles)
+            // Look for files that start with "RE" + assetName with any supported extension
+            // Check in priority order (OGG first for audio)
+            foreach (var extension in allExtensions)
+            {
+
+                var fullPath = Path.Combine(ResourcesPath, $"{assetName}{extension}");
+                if (File.Exists(fullPath))
                 {
-                    var fullPath = Path.Combine(ResourcesPath, possibleFile);
-                    if (File.Exists(fullPath))
-                    {
-                        return fullPath;
-                    }
+
+                    Logger.Log(LogLevel.Debug, $"Selected mod file for '{assetName}': {Path.GetFileName(fullPath)}");
+                    return fullPath;
                 }
             }
 
+
             // Search in subdirectories as well
             var allModFiles = Directory.GetFiles(ResourcesPath, "*.*", SearchOption.AllDirectories)
-                .Where(f => supportedExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()));
-                
+                .Where(f => allExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()));
+        
+            // Group by processed asset name, then prioritize by format
+            var matchingFiles = new List<string>();
+            
             foreach (var file in allModFiles)
             {
                 var fileName = Path.GetFileNameWithoutExtension(file);
@@ -226,8 +206,26 @@ public static class ModsDataManager
 
                 if (string.Equals(processedName, assetName, StringComparison.OrdinalIgnoreCase))
                 {
-                    return file;
+                    matchingFiles.Add(file);
                 }
+            }
+            
+            // If multiple files found, prefer OGG for audio
+            if (matchingFiles.Count > 0)
+            {
+                // Sort by format preference: OGG first, then others
+                
+                var selectedFile = matchingFiles.First();
+                var selectedExt = Path.GetExtension(selectedFile).ToLowerInvariant();
+                
+                if (matchingFiles.Count > 1)
+                {
+                    Logger.Log(LogLevel.Info, $"Multiple mod files found for '{assetName}', selected {selectedExt.ToUpper()} format: {Path.GetFileName(selectedFile)}");
+                }
+                
+                
+                Logger.Log(LogLevel.Debug, $"Selected mod file for '{assetName}': {Path.GetFileName(selectedFile)}");
+                return selectedFile;
             }
 
             return null;
@@ -239,6 +237,28 @@ public static class ModsDataManager
         }
     }
 
+    /// <summary>
+    /// Processes a mod filename to extract the actual asset name
+    /// Handles various naming conventions like 'RE', 'Re', or plain filename
+    /// </summary>
+    /// <param name="fileName">Original filename without extension</param>
+    /// <returns>Asset name to search for in game files</returns>
+    private static string ProcessModFileName(string fileName)
+    {
+        if (string.IsNullOrEmpty(fileName))
+            return string.Empty;
+            
+        // Check for various prefixes and remove them to get the actual asset name
+        if (fileName.StartsWith("RE", StringComparison.OrdinalIgnoreCase))
+        {
+            // Remove 'RE' or 'Re' prefix
+            return fileName.Substring(2);
+        }
+        
+        // If no prefix, use the filename as-is
+        return fileName;
+    }
+    
     /// <summary>
     /// Forces a refresh of the mods data by rescanning the resources directory
     /// </summary>
@@ -345,6 +365,8 @@ public abstract class ModBase
     public string FilePath { get; set; } = string.Empty;
     public string RelativePath { get; set; } = string.Empty;
     public string OriginalFileName { get; set; } = string.Empty;
+
+    public string FileExtension => Path.GetExtension(FilePath).ToLowerInvariant();
 }
 
 /// <summary>
@@ -352,7 +374,7 @@ public abstract class ModBase
 /// </summary>
 public class AudioMod : ModBase
 {
-    public override string ToString() => $"Audio: {AssetName} ({Path.GetFileName(FilePath)})";
+    public override string ToString() => $"Audio: {AssetName} ({Path.GetFileName(FilePath)}, {FileExtension})";
 }
 
 /// <summary>

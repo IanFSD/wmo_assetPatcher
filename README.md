@@ -8,27 +8,27 @@ Made specifically for Resident Evil: Retribution.
 While the patcher is made for RE: Retribution, it could be used for editing any Audio and texture/sprite from the game.
 What you need to do is to add the file you want to add with the name of the asset you want to modify
 
-FILE NAMING CONVENTION:
-
 - Example: bgm-lobby.ogg will replace the 'bgm-lobby' asset in the game.
 - Example: head-default-0.png will replace the 'head-default-0' sprite.
+
+For getting all the asset names, i'll leave it up to you to find it yourself with a tool like [AssetRipper](https://github.com/AssetRipper/AssetRipper)
 
 SUPPORTED FORMATS:
 Audio:
 
-- .ogg (recommended)
+- .ogg
 - .wav
-- .mp3
-- .m4a
+- .mp3 (not recommended)
 
 Sprites/Textures:
 
-- .png (recommended)
-- .jpg, .jpeg
-- .bmp
-- .tga
+- .png
+- .jpg
+- .jpeg
 
 After placing your mod files here, run the patcher to apply them to the game.
+
+For removing the changes made or if u want to restore the game, [Verify](https://help.steampowered.com/en/faqs/view/0C48-FCBD-DA71-93EB) your files on the drop-down menu ==> Properties.
 
 ## Build & Compile
 

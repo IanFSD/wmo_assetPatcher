@@ -11,7 +11,7 @@ using FileInstance = AssetsTools.NET.Extra.AssetsFileInstance;
 
 namespace WMO.AssetPatcher;
     public class TextureAssetHandler() : AssetTypeHandlerBase(AssetClassID.Texture2D, ".png", ".jpg", ".jpeg") {
-        public override bool Replace(AssetsManager am, FileInstance fileInst, AssetFileInfo assetInfo, byte[] data) {
+        public bool Replace(AssetsManager am, FileInstance fileInst, AssetFileInfo assetInfo, byte[] data) {
             try {
                 var baseField = am.GetBaseField(fileInst, assetInfo);
                 var textureFile = TextureFile.ReadTextureFile(baseField);
@@ -60,8 +60,9 @@ namespace WMO.AssetPatcher;
                 return false;
             }
         }
-        
-        private byte[] BitmapToBGRA(Bitmap bitmap) {
+
+
+    private byte[] BitmapToBGRA(Bitmap bitmap) {
             var bgraData = new byte[bitmap.Width * bitmap.Height * 4];
             var bitmapData = bitmap.LockBits(
                 new Rectangle(0, 0, bitmap.Width, bitmap.Height),
