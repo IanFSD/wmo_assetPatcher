@@ -31,7 +31,7 @@ After placing your mod files here, run the patcher to apply them to the game.
 For removing the changes made or if u want to restore the game, [Verify](https://help.steampowered.com/en/faqs/view/0C48-FCBD-DA71-93EB) your files on the drop-down menu ==> Properties.
 
 ## Build & Compile
-Test
+
 ### Prerequisites
 
 - [.NET SDK 7.0+](https://dotnet.microsoft.com/download)
