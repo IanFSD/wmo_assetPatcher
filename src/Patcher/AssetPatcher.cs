@@ -61,11 +61,19 @@ public static class AssetPatcher
             Console.WriteLine();
             foreach (var assetsFile in assetsFiles)
             {
+                // Check if there are any mods left to patch
+                if (modsCollection.TotalCount == 0)
+                {
+                    Logger.Log(LogLevel.Info, $"All mods have been patched successfully. Stopping processing.");
+                    break;
+                }
+
                 processedFiles++;
                 var fileName = Path.GetFileName(assetsFile);
                 Logger.Log(LogLevel.Info, $"Processing file {processedFiles}/{assetsFiles.Length}: {fileName}");
                 Logger.Log(LogLevel.Debug, $"File path: {assetsFile}");
                 Logger.Log(LogLevel.Debug, $"File size: {new FileInfo(assetsFile).Length} bytes");
+                Logger.Log(LogLevel.Debug, $"Remaining mods to patch: {modsCollection.TotalCount} (Audio: {modsCollection.AudioMods.Count}, Sprites: {modsCollection.SpriteMods.Count}, Textures: {modsCollection.TextureMods.Count})");
                 
                 var patchedCount = PatchAssetsInFile(assetsFile, modsCollection);
                 if (patchedCount > 0)
@@ -176,6 +184,7 @@ public static class AssetPatcher
             // Collect all replacers for this file
             var processedAssets = 0;
             var skippedAssets = 0;
+            var modsToRemove = new List<AudioMod>();
 
             Logger.Log(LogLevel.Info, $"Processing {modsCollection.AudioMods.Count} audio mods against {audioAssets.Count} assets...");
 
@@ -235,6 +244,7 @@ public static class AssetPatcher
                                 assetInfo.Replacer = wrapper.GetAssetsReplacer();
                                 processedAssets++;
                                 assetFound = true;
+                                modsToRemove.Add(audioMod); // Mark for removal
                                 Logger.Log(LogLevel.Success, $"Successfully prepared replacer for: {assetName} (Asset ID: {assetInfo.PathId})");
                                 break; // Found the asset, move to next mod
                             }
@@ -257,6 +267,13 @@ public static class AssetPatcher
                     Logger.Log(LogLevel.Debug, $"No matching asset found for mod: {assetName}");
                     skippedAssets++;
                 }
+            }
+
+            // Remove successfully patched mods from the collection
+            foreach (var modToRemove in modsToRemove)
+            {
+                modsCollection.AudioMods.Remove(modToRemove);
+                Logger.Log(LogLevel.Debug, $"Removed successfully patched mod from collection: {modToRemove.AssetName}");
             }
 
             Logger.Log(LogLevel.Info, $"Asset processing summary for {fileName}: {processedAssets} processed, {skippedAssets} skipped");

@@ -1,0 +1,15 @@
+name: Enforce Merge from Develop
+
+on:
+  pull_request:
+    branches: [master]  # Solo se activa para PRs que apunten a master
+
+jobs:
+  check-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify source branch
+        if: github.head_ref != 'develop'
+        run: |
+          echo "Error: Merging into master is only permitted from the develop branch.."
+          exit 1
