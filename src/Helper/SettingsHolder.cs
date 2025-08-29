@@ -20,9 +20,7 @@ public static class SettingsHolder {
 		get => _installPath;
 		set { 	
 			var isValid = value != null && File.Exists(Path.Combine(value, "Whisper Mountain Outbreak.exe"));
-        
 			if (_installPath == value) return;
-        
 			_installPath = isValid ? value : null;
 			InstallPathChanged?.Invoke();
 			Logger.Log(LogLevel.Debug, $"Setting {nameof(InstallPath)} changed to: {value}");

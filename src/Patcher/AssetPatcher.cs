@@ -11,6 +11,8 @@ public static class AssetPatcher
 {
     public static bool TryPatch(string gamePath)
     {
+        var modifiedFiles = new List<string>(); // Track all files that have been modified
+        
         try
         {
             Logger.Log(LogLevel.Info, $"Starting patching process for game path: {gamePath}");
@@ -44,7 +46,7 @@ public static class AssetPatcher
             bool patchedAny = false;
             int totalPatchedAssets = 0;
             int processedFiles = 0;
-
+            
             // Load mods data once before processing
             Logger.Log(LogLevel.Info, $"Loading mods data...");
             var modsCollection = ModsDataManager.GetModsCollection();
@@ -70,6 +72,20 @@ public static class AssetPatcher
 
                 processedFiles++;
                 var fileName = Path.GetFileName(assetsFile);
+                
+                // Create backup before processing
+                Logger.Log(LogLevel.Debug, $"Creating backup for: {fileName}");
+                var backupPath = BackupManager.CreateBackup(assetsFile);
+                if (backupPath != null)
+                {
+                    Logger.Log(LogLevel.Debug, $"Backup created at: {backupPath}");
+                }
+                else
+                {
+                    Logger.Log(LogLevel.Error, $"Failed to create backup for: {fileName}");
+                    return false; // Abort if backup fails
+                }
+                
                 Logger.Log(LogLevel.Info, $"Processing file {processedFiles}/{assetsFiles.Length}: {fileName}");
                 Logger.Log(LogLevel.Debug, $"File path: {assetsFile}");
                 Logger.Log(LogLevel.Debug, $"File size: {new FileInfo(assetsFile).Length} bytes");
@@ -80,6 +96,7 @@ public static class AssetPatcher
                 {
                     patchedAny = true;
                     totalPatchedAssets += patchedCount;
+                    modifiedFiles.Add(assetsFile); // Track this file as modified
                     Logger.Log(LogLevel.Success, $"Successfully patched {patchedCount} assets in {fileName}");
                 }
                 else
@@ -95,6 +112,12 @@ public static class AssetPatcher
             {
                 Logger.Log(LogLevel.Success, $"Patching completed successfully! Total assets patched: {totalPatchedAssets}");
                 Logger.Log(LogLevel.Info, $"Setting patched status to true");
+                
+                // Delete all backups since patching was successful
+                Logger.Log(LogLevel.Info, $"Cleaning up backup files...");
+                BackupManager.DeleteAllBackups();
+                Logger.Log(LogLevel.Debug, $"All backup files have been deleted");
+                
                 SettingsHolder.IsPatched = true;
                 return true;
             }
@@ -107,6 +130,11 @@ public static class AssetPatcher
                 Logger.Log(LogLevel.Debug, $"  - File path accessibility");
                 Console.WriteLine($"No assets were patched.");
                 Console.WriteLine($"Check if your file names match the game's asset names.");
+                
+                // Clean up backups since no files were actually modified
+                Logger.Log(LogLevel.Debug, $"Cleaning up unused backup files...");
+                BackupManager.DeleteAllBackups();
+                
                 return false;
             }
         }
@@ -116,6 +144,20 @@ public static class AssetPatcher
             Logger.Log(LogLevel.Debug, $"Exception type: {ex.GetType().Name}");
             Logger.Log(LogLevel.Debug, $"Stack trace: {ex.StackTrace}");
             Console.WriteLine($" Error during patching: {ex.Message}");
+            
+            // Attempt to recover from backups
+            Logger.Log(LogLevel.Warning, $"Attempting to recover from backups due to error...");
+            if (BackupManager.RecoverBackups())
+            {
+                Logger.Log(LogLevel.Info, $"Successfully recovered all files from backups");
+                Console.WriteLine($"Files have been restored from backups due to the error.");
+            }
+            else
+            {
+                Logger.Log(LogLevel.Error, $"Failed to recover some files from backups");
+                Console.WriteLine($"Warning: Some files may not have been restored properly. Check your game installation.");
+            }
+            
             ErrorHandler.Handle("Error during patching", ex);
             return false;
         }
@@ -232,7 +274,7 @@ public static class AssetPatcher
                         
                         if (name == targetAssetName)
                         {
-                            Logger.Log(LogLevel.Debug, $"Found matching asset! Asset ID: {assetInfo.PathId}, Name: '{name}'");
+                            Logger.Log(LogLevel.Debug, $"Found matching asset! Path ID: {assetInfo.PathId}, Name: '{name}'");
                             
                             // Create replacer for this asset
                             Logger.Log(LogLevel.Debug, $"Creating replacer for asset: {assetName}");
@@ -245,7 +287,7 @@ public static class AssetPatcher
                                 processedAssets++;
                                 assetFound = true;
                                 modsToRemove.Add(audioMod); // Mark for removal
-                                Logger.Log(LogLevel.Success, $"Successfully prepared replacer for: {assetName} (Asset ID: {assetInfo.PathId})");
+                                Logger.Log(LogLevel.Success, $"Successfully prepared replacer for: {assetName} (Path ID: {assetInfo.PathId})");
                                 break; // Found the asset, move to next mod
                             }
                             else
@@ -321,6 +363,26 @@ public static class AssetPatcher
             if (ex.InnerException != null)
             {
                 Logger.Log(LogLevel.Debug, $"Inner exception: {ex.InnerException.Message}");
+            }
+            
+            // Attempt to restore this specific file from backup
+            Logger.Log(LogLevel.Warning, $"Attempting to restore {fileName} from backup due to processing error...");
+            var backupPath = BackupManager.GetBackupPath(assetsFilePath);
+            if (backupPath != null && File.Exists(backupPath))
+            {
+                try
+                {
+                    File.Copy(backupPath, assetsFilePath, true);
+                    Logger.Log(LogLevel.Info, $"Successfully restored {fileName} from backup");
+                }
+                catch (Exception restoreEx)
+                {
+                    Logger.Log(LogLevel.Error, $"Failed to restore {fileName} from backup: {restoreEx.Message}");
+                }
+            }
+            else
+            {
+                Logger.Log(LogLevel.Warning, $"No backup found for {fileName} to restore from");
             }
             
             ErrorHandler.Handle("Error during batch processing", ex);

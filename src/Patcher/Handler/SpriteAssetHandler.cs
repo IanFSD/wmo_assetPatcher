@@ -143,9 +143,7 @@ public class SpriteAssetHandler : AssetTypeHandlerBase
             // Create replacer for the texture
             var textureReplacer = new ContentReplacerFromBuffer(textureBaseField.WriteToByteArray());
             textureAssetInfo.Replacer = textureReplacer;
-            
-            Logger.Log(LogLevel.Success, $"Successfully prepared texture replacer for sprite: {assetName}");
-            
+                        
             // Note: We don't need to create a replacer for the sprite itself since we're only modifying the texture
             // The sprite will automatically use the updated texture
             Logger.Log(LogLevel.Debug, $"Sprite asset replacement completed");

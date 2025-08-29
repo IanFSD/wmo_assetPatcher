@@ -226,7 +226,6 @@ public class AudioAssetHandler : AssetTypeHandlerBase
             baseField["m_Resource.m_Size"].AsULong = (ulong)writeData.Length;
             Logger.Log(LogLevel.Debug, $"Resource offset: {newOffset}, size: {writeData.Length}");
 
-            Logger.Log(LogLevel.Success, $"Successfully prepared replacer for: {assetName}");
             Logger.Log(LogLevel.Debug, $"Creating ContentReplacerFromBuffer...");
             
             // Return a replacer for this asset

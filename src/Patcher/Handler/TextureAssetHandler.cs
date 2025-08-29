@@ -119,7 +119,6 @@ public class TextureAssetHandler : AssetTypeHandlerBase
             var textureReplacer = new ContentReplacerFromBuffer(baseField.WriteToByteArray());
             var wrapper = new AssetsReplacerWrapper(textureReplacer, assetInfo.PathId);
             
-            Logger.Log(LogLevel.Success, $"Successfully prepared texture replacer for: {assetName}");
             Logger.Log(LogLevel.Debug, $"Created texture replacer wrapper for PathId: {assetInfo.PathId}");
             
             return wrapper;
