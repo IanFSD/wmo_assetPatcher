@@ -1,14 +1,14 @@
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
 using AssetsTools.NET.Texture;
-using WMO.Helper;
-using WMO.Logging;
+using WMO.Core.Helpers;
+using WMO.Core.Logging;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
-namespace WMO.AssetPatcher;
+namespace WMO.Core.Patching;
 
 public class SpriteAssetHandler : AssetTypeHandlerBase
 {

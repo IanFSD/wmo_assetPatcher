@@ -1,11 +1,11 @@
 using AssetsTools.NET;
-using WMO.Helper;
-using WMO.Logging;
+using WMO.Core.Helpers;
+using WMO.Core.Logging;
 using AssetsTools.NET.Extra;
 using NAudio.Wave;
 using NAudio.Vorbis;
 
-namespace WMO.AssetPatcher;
+namespace WMO.Core.Patching;
 
 public static class AssetPatcher
 {

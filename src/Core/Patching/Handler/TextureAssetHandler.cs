@@ -5,10 +5,10 @@ using System.Runtime.InteropServices;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
 using AssetsTools.NET.Texture;
-using WMO.Helper;
-using WMO.Logging;
+using WMO.Core.Helpers;
+using WMO.Core.Logging;
 
-namespace WMO.AssetPatcher;
+namespace WMO.Core.Patching;
 
 public class TextureAssetHandler : AssetTypeHandlerBase
 {

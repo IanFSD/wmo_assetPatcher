@@ -1,6 +1,6 @@
-using WMO.Logging;
+using WMO.Core.Logging;
 
-namespace WMO.Helper;
+namespace WMO.Core.Helpers;
 
 public static class BackupManager
 {

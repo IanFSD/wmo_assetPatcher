@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Security.Principal;
-using WMO.AssetPatcher;
-using WMO.Helper;
-using WMO.Logging;
+using WMO.Core.Patching;
+using WMO.Core.Helpers;
+using WMO.Core.Logging;
 
 namespace WMO;
 
@@ -176,7 +176,7 @@ internal static class Program
             Console.WriteLine("Starting patching process...");
             Console.WriteLine();
 
-            bool success = WMO.AssetPatcher.AssetPatcher.TryPatch(gamePath);
+            bool success = WMO.Core.Patching.AssetPatcher.TryPatch(gamePath);
 
             if (success)
             {

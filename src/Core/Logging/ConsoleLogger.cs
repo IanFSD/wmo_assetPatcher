@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
-using WMO.Helper;
+using WMO.Core.Helpers;
 
-namespace WMO.Logging;
+namespace WMO.Core.Logging;
 
 public static class Logger {
     private static readonly string ExeLogFilePath;
@@ -10,6 +10,7 @@ public static class Logger {
     private static string? _lastInstallLogPath;
     
     public static event Action<string>? LogMessageAdded;
+    public static event EventHandler<string>? LogReceived;
     private static readonly List<string> _logMessages = new();
 
     static Logger() {
@@ -48,6 +49,7 @@ public static class Logger {
 
                 _logMessages.Add(logMessage);
                 LogMessageAdded?.Invoke(logMessage);
+                LogReceived?.Invoke(null, logMessage);
 
                 var installLogPath = GetInstallLogPath();
                 if (installLogPath == null) return;

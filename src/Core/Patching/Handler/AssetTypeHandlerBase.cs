@@ -1,5 +1,5 @@
 using AssetsTools.NET.Extra;
-namespace WMO.AssetPatcher;
+namespace WMO.Core.Patching;
 
 public abstract class AssetTypeHandlerBase(AssetClassID classId, params string[] extensions)
 {

@@ -1,6 +1,6 @@
-using WMO.Logging;
+using WMO.Core.Logging;
 
-namespace WMO.Helper;
+namespace WMO.Core.Helpers;
 
 public static class SettingsHolder {
 	public const string DEFAULT_GAME_PATH = @"C:\Program Files (x86)\Steam\steamapps\common\Whisper Mountain Outbreak\Whisper Mountain Outbreak_Data";

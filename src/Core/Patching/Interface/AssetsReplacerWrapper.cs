@@ -1,7 +1,7 @@
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
 
-namespace WMO.AssetPatcher;
+namespace WMO.Core.Patching;
 
 /// <summary>
 /// Wrapper around AssetsTools.NET replacers to implement our IAssetReplacer interface

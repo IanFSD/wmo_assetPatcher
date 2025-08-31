@@ -1,4 +1,4 @@
-namespace WMO.AssetPatcher;
+namespace WMO.Core.Patching;
 
 public interface IAssetReplacer
 {

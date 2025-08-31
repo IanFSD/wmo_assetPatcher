@@ -1,10 +1,10 @@
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
-using WMO.Helper;
-using WMO.Logging;
+using WMO.Core.Helpers;
+using WMO.Core.Logging;
 using FileInstance = AssetsTools.NET.Extra.AssetsFileInstance;
 
-namespace WMO.AssetPatcher;
+namespace WMO.Core.Patching;
 
 public class TextAssetHandler() : AssetTypeHandlerBase(AssetClassID.TextAsset, ".bytes", ".txt")
 {

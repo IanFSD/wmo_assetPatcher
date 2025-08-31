@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Text;
-using WMO.Helper;
+using WMO.Core.Helpers;
 
-namespace WMO.Logging {
+namespace WMO.Core.Logging {
 	[InterpolatedStringHandler]
 	public readonly ref struct LogInterpolatedStringHandler {
 		private readonly StringBuilder? _builder;

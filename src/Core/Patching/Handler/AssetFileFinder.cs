@@ -1,8 +1,8 @@
 using System;
 using System.IO;
-using WMO.Logging;
+using WMO.Core.Logging;
 
-namespace WMO.AssetPatcher;
+namespace WMO.Core.Patching;
 
 public static class AssetFileFinder
 {

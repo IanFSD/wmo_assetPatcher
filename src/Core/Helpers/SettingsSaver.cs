@@ -1,7 +1,7 @@
 using System.Text.Json;
-using WMO.Logging;
+using WMO.Core.Logging;
 
-namespace WMO.Helper;
+namespace WMO.Core.Helpers;
 
 public static class SettingsSaver {
     private static readonly string SettingsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Settings");
