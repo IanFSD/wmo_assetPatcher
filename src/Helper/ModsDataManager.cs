@@ -39,7 +39,7 @@ public static class ModsDataManager
             Logger.Log(LogLevel.Debug, $"Found {allFiles.Length} total files in mods directory");
 
             var audioExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a" };
-            var spriteExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
+            var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
 
             foreach (var filePath in allFiles)
             {
@@ -56,13 +56,28 @@ public static class ModsDataManager
                         Logger.Log(LogLevel.Debug, $"Added audio mod: {audioMod.AssetName} -> {audioMod.FilePath}");
                     }
                 }
-                else if (spriteExtensions.Contains(extension))
+                else if (imageExtensions.Contains(extension))
                 {
-                    var spriteMod = ProcessSpriteFile(filePath, fileName, relativePath);
-                    if (spriteMod != null)
+                    // Determine if this is a sprite or texture based on naming/path
+                    bool isTexture = DetermineIfTexture(filePath, fileName, relativePath);
+                    
+                    if (isTexture)
                     {
-                        collection.SpriteMods.Add(spriteMod);
-                        Logger.Log(LogLevel.Debug, $"Added sprite mod: {spriteMod.AssetName} -> {spriteMod.FilePath}");
+                        var textureMod = ProcessTextureFile(filePath, fileName, relativePath);
+                        if (textureMod != null)
+                        {
+                            collection.TextureMods.Add(textureMod);
+                            Logger.Log(LogLevel.Debug, $"Added texture mod: {textureMod.AssetName} -> {textureMod.FilePath}");
+                        }
+                    }
+                    else
+                    {
+                        var spriteMod = ProcessSpriteFile(filePath, fileName, relativePath);
+                        if (spriteMod != null)
+                        {
+                            collection.SpriteMods.Add(spriteMod);
+                            Logger.Log(LogLevel.Debug, $"Added sprite mod: {spriteMod.AssetName} -> {spriteMod.FilePath}");
+                        }
                     }
                 }
                 else
@@ -71,7 +86,7 @@ public static class ModsDataManager
                 }
             }
 
-            Logger.Log(LogLevel.Info, $"Mods collection prepared: {collection.AudioMods.Count} audio, {collection.SpriteMods.Count} sprites");
+            Logger.Log(LogLevel.Info, $"Mods collection prepared: {collection.AudioMods.Count} audio, {collection.SpriteMods.Count} sprites, {collection.TextureMods.Count} textures");
             
             if (collection.AudioMods.Count > 0)
             {
@@ -81,6 +96,11 @@ public static class ModsDataManager
             if (collection.SpriteMods.Count > 0)
             {
                 Logger.Log(LogLevel.Info, $"Sprite mods: {string.Join(", ", collection.SpriteMods.Select(m => m.AssetName))}");
+            }
+            
+            if (collection.TextureMods.Count > 0)
+            {
+                Logger.Log(LogLevel.Info, $"Texture mods: {string.Join(", ", collection.TextureMods.Select(m => m.AssetName))}");
             }
 
             return collection;
@@ -154,6 +174,95 @@ public static class ModsDataManager
             Logger.Log(LogLevel.Warning, $"Failed to process sprite file {relativePath}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Processes a texture file and creates a TextureMod
+    /// </summary>
+    private static TextureMod? ProcessTextureFile(string filePath, string fileName, string relativePath)
+    {
+        try
+        {
+            // Process the filename to extract the asset name
+            var assetName = ProcessModFileName(fileName);
+            if (string.IsNullOrEmpty(assetName))
+            {
+                Logger.Log(LogLevel.Warning, $"Could not determine asset name from file: {fileName}");
+                return null;
+            }
+
+            Logger.Log(LogLevel.Debug, $"Processed '{fileName}' -> texture asset name: '{assetName}'");
+            
+            return new TextureMod
+            {
+                AssetName = assetName,
+                FilePath = filePath,
+                RelativePath = relativePath,
+                OriginalFileName = fileName
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, $"Failed to process texture file {relativePath}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Determines if an image file should be treated as a texture (Texture2D) or sprite based on naming conventions
+    /// </summary>
+    /// <param name="filePath">Full path to the file</param>
+    /// <param name="fileName">File name without extension</param>
+    /// <param name="relativePath">Relative path from mods folder</param>
+    /// <returns>True if should be treated as texture, false if sprite</returns>
+    private static bool DetermineIfTexture(string filePath, string fileName, string relativePath)
+    {
+        // Convert to lowercase for case-insensitive matching
+        var lowerFileName = fileName.ToLowerInvariant();
+        var lowerRelativePath = relativePath.ToLowerInvariant();
+        
+        // Check for texture-specific keywords in the filename or path
+        var textureKeywords = new[] { "texture", "tex", "material", "mat", "diffuse", "normal", "bump", "specular", "roughness", "metallic", "albedo", "basecolor" };
+        var spriteKeywords = new[] { "sprite", "icon", "ui", "button", "logo", "avatar", "character", "portrait" };
+        
+        // Check if in a textures folder
+        if (lowerRelativePath.Contains("texture") || lowerRelativePath.Contains("material"))
+        {
+            Logger.Log(LogLevel.Debug, $"File '{fileName}' classified as texture due to path: {relativePath}");
+            return true;
+        }
+        
+        // Check if in a sprites folder  
+        if (lowerRelativePath.Contains("sprite") || lowerRelativePath.Contains("ui") || lowerRelativePath.Contains("icon"))
+        {
+            Logger.Log(LogLevel.Debug, $"File '{fileName}' classified as sprite due to path: {relativePath}");
+            return false;
+        }
+        
+        // Check filename for texture keywords
+        foreach (var keyword in textureKeywords)
+        {
+            if (lowerFileName.Contains(keyword))
+            {
+                Logger.Log(LogLevel.Debug, $"File '{fileName}' classified as texture due to keyword: {keyword}");
+                return true;
+            }
+        }
+        
+        // Check filename for sprite keywords
+        foreach (var keyword in spriteKeywords)
+        {
+            if (lowerFileName.Contains(keyword))
+            {
+                Logger.Log(LogLevel.Debug, $"File '{fileName}' classified as sprite due to keyword: {keyword}");
+                return false;
+            }
+        }
+        
+        // Default classification: if no specific indicators, treat as sprite
+        // This maintains compatibility with existing sprite mods
+        Logger.Log(LogLevel.Debug, $"File '{fileName}' classified as sprite (default)");
+        return false;
     }
 
     /// <summary>
@@ -294,22 +403,20 @@ public static class ModsDataManager
 Place your mod files in this folder to replace game assets.
 
 FILE NAMING CONVENTION:
-- Your mod files should start with 'RE' followed by the exact asset name
-- Example: REbgm-lobby.ogg will replace the 'bgm-lobby' asset in the game
-- Example: REhead-default-0.png will replace the 'head-default-0' sprite
+- Your mod files should be named exactly like the asset name you want to replace.
+- Example: bgm-lobby.ogg will replace the 'bgm-lobby' asset in the game
+- Example: head-default-0.png will replace the 'head-default-0' sprite
 
 SUPPORTED FORMATS:
 Audio:
 - .ogg (recommended)
 - .wav
-- .mp3
-- .m4a
+- .mp3 (not recommended)
 
 Sprites/Textures:
 - .png (recommended)
-- .jpg, .jpeg
-- .bmp
-- .tga
+- .jpg
+- .jpeg
 
 FINDING ASSET NAMES:
 Run the patcher at least once to generate 'assetListNames.json' in this folder.
@@ -317,18 +424,11 @@ This JSON file contains ALL asset names found in the game, organized by type.
 Use this file to find the exact names of assets you want to replace.
 
 EXAMPLE MOD FILES:
-- REbgm-lobby.ogg (replaces background music)
-- REbgm-title.ogg (replaces title screen music)
-- REsfxUI-cancel.ogg (replaces UI cancel sound)
-- REhead-default-0.png (replaces character head sprite)
-- REbody-default-0.png (replaces character body sprite)
-
-STEPS TO MOD:
-1. Run the patcher once to generate assetListNames.json
-2. Open assetListNames.json to find the asset names you want to replace
-3. Create your mod files with 'RE' + exact asset name
-4. Run the patcher again to apply your mods
-
+- bgm-lobby.ogg (replaces background music)
+- bgm-title.ogg (replaces title screen music)
+- sfxUI-cancel.ogg (replaces UI cancel sound)
+- head-default-0.png (replaces character head sprite)
+- body-default-0.png (replaces character body sprite)
 After placing your mod files here, run the patcher to apply them to the game.
 ";
                 File.WriteAllText(readmePath, readmeContent);
@@ -352,8 +452,9 @@ public class ModsCollection
 {
     public List<AudioMod> AudioMods { get; set; } = new();
     public List<SpriteMod> SpriteMods { get; set; } = new();
+    public List<TextureMod> TextureMods { get; set; } = new();
     
-    public int TotalCount => AudioMods.Count + SpriteMods.Count;
+    public int TotalCount => AudioMods.Count + SpriteMods.Count + TextureMods.Count;
 }
 
 /// <summary>
@@ -383,4 +484,12 @@ public class AudioMod : ModBase
 public class SpriteMod : ModBase
 {
     public override string ToString() => $"Sprite: {AssetName} ({Path.GetFileName(FilePath)})";
+}
+
+/// <summary>
+/// Represents a texture mod file (Texture2D assets)
+/// </summary>
+public class TextureMod : ModBase
+{
+    public override string ToString() => $"Texture: {AssetName} ({Path.GetFileName(FilePath)})";
 }

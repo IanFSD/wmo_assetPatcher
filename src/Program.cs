@@ -33,7 +33,7 @@ internal static class Program
             if (modsCollection.TotalCount == 0)
             {
                 Console.WriteLine(" No mod files found!");
-                Console.WriteLine($"Please place your audio mod files (.ogg) in the mods folder:");
+                Console.WriteLine($"Please place your mod files in the mods folder:");
                 Console.WriteLine($"{modsPath}");
                 Console.WriteLine();
                 Console.WriteLine("File naming: Your files should be named with the name of the asset you want to modify");

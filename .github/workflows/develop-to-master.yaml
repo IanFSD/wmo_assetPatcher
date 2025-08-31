@@ -1,0 +1,24 @@
+name: Enforce Merge from Develop
+
+on:
+  pull_request:
+    branches: [master]  # Only triggers for PRs targeting master
+
+jobs:
+  check-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify source branch
+        if: github.head_ref != 'develop'
+        run: |
+          echo "Error: Only merging to master from develop branch is allowed."
+          exit 1
+
+  check-assignee:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify assignment to owner
+        if: github.event.pull_request.user.login != github.repository_owner && !contains(github.event.pull_request.assignees.*.login, github.repository_owner)
+        run: |
+          echo "Error: The repository owner must be assigned to this PR."
+          exit 1

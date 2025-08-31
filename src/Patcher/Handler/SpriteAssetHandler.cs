@@ -1,18 +1,18 @@
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
 using AssetsTools.NET.Texture;
 using WMO.Helper;
 using WMO.Logging;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 
 namespace WMO.AssetPatcher;
 
-public class TextureAssetHandler : AssetTypeHandlerBase
+public class SpriteAssetHandler : AssetTypeHandlerBase
 {
-    public TextureAssetHandler() : base(AssetClassID.Texture2D, ".png", ".jpg", ".jpeg") { }
+    public SpriteAssetHandler() : base(AssetClassID.Sprite, ".png", ".jpg", ".jpeg", ".bmp", ".tga") { }
 
     public static IAssetReplacer? CreateReplacer(AssetsManager am,
                                                  AssetsFileInstance fileInst,
@@ -22,33 +22,64 @@ public class TextureAssetHandler : AssetTypeHandlerBase
     {
         try
         {
-            Logger.Log(LogLevel.Debug, $"Creating replacer for texture asset: {assetName}");
+            Logger.Log(LogLevel.Debug, $"Creating replacer for sprite asset: {assetName}");
             Logger.Log(LogLevel.Debug, $"Input data size: {data.Length} bytes");
-            
+
             string ext = Path.GetExtension(assetName).ToLowerInvariant();
             Logger.Log(LogLevel.Debug, $"File extension detected: {ext}");
 
-            // Read the texture's base field
-            Logger.Log(LogLevel.Debug, $"Reading texture base field...");
+            // Read the sprite's base field
+            Logger.Log(LogLevel.Debug, $"Reading sprite base field...");
             var baseField = am.GetBaseField(fileInst, assetInfo);
             var name = baseField["m_Name"].AsString;
-            Logger.Log(LogLevel.Debug, $"Texture name from file: '{name}'");
+            Logger.Log(LogLevel.Debug, $"Sprite name from file: '{name}'");
             Logger.Log(LogLevel.Debug, $"Expected name: '{Path.GetFileNameWithoutExtension(assetName)}'");
             
             if (name != Path.GetFileNameWithoutExtension(assetName))
             {
-                Logger.Log(LogLevel.Debug, $"Texture name mismatch, skipping");
+                Logger.Log(LogLevel.Debug, $"Sprite name mismatch, skipping");
                 return null;
             }
 
-            Logger.Log(LogLevel.Debug, $"Texture name matches, proceeding with replacement");
+            Logger.Log(LogLevel.Debug, $"Sprite name matches, proceeding with replacement");
 
-            // Read the current texture file
-            Logger.Log(LogLevel.Debug, $"Reading texture file data...");
-            var textureFile = TextureFile.ReadTextureFile(baseField);
+            // Get the texture reference from the sprite
+            var textureField = baseField["m_RD"]["texture"];
+            if (textureField == null)
+            {
+                Logger.Log(LogLevel.Warning, $"Sprite '{name}' has no texture reference");
+                return null;
+            }
+    
+            var fileId = textureField["m_FileID"].AsInt;
+            var pathId = textureField["m_PathID"].AsLong;
             
-            Logger.Log(LogLevel.Debug, $"Original texture format: {(TextureFormat)textureFile.m_TextureFormat}");
-            Logger.Log(LogLevel.Debug, $"Original texture dimensions: {textureFile.m_Width}x{textureFile.m_Height}");
+            Logger.Log(LogLevel.Debug, $"Sprite references texture - FileID: {fileId}, PathID: {pathId}");
+
+            // Find the texture asset
+            AssetFileInfo? textureAssetInfo = null;
+            AssetsFileInstance? textureFileInst = fileInst;
+
+            if (fileId == 0)
+            {
+                // Texture is in the same file
+                Logger.Log(LogLevel.Debug, $"Texture is in same file, searching for PathID: {pathId}");
+                textureAssetInfo = fileInst.file.GetAssetsOfType((int)AssetClassID.Texture2D)
+                    .FirstOrDefault(a => a.PathId == pathId);
+            }
+            else
+            {
+                Logger.Log(LogLevel.Warning, $"External texture references not yet supported (FileID: {fileId})");
+                return null;
+            }
+
+            if (textureAssetInfo == null)
+            {
+                Logger.Log(LogLevel.Warning, $"Could not find texture asset for sprite '{name}'");
+                return null;
+            }
+
+            Logger.Log(LogLevel.Debug, $"Found texture asset with PathID: {textureAssetInfo.PathId}");
 
             // Load and process the image
             Logger.Log(LogLevel.Debug, $"Loading image from mod file...");
@@ -68,6 +99,14 @@ public class TextureAssetHandler : AssetTypeHandlerBase
                 return null;
             }
 
+            // Get the texture's base field
+            var textureBaseField = am.GetBaseField(textureFileInst, textureAssetInfo);
+            var textureFile = TextureFile.ReadTextureFile(textureBaseField);
+            
+            Logger.Log(LogLevel.Debug, $"Original texture format: {(TextureFormat)textureFile.m_TextureFormat}");
+            Logger.Log(LogLevel.Debug, $"Original texture dimensions: {textureFile.m_Width}x{textureFile.m_Height}");
+            Logger.Log(LogLevel.Debug, $"New image dimensions: {bitmap.Width}x{bitmap.Height}");
+
             // Handle image resizing if needed
             if (bitmap.Width != textureFile.m_Width || bitmap.Height != textureFile.m_Height)
             {
@@ -80,10 +119,6 @@ public class TextureAssetHandler : AssetTypeHandlerBase
                 }
                 bitmap.Dispose();
                 bitmap = resized;
-            }
-            else
-            {
-                Logger.Log(LogLevel.Debug, $"Image dimensions match, no resizing needed");
             }
 
             // Convert bitmap to BGRA format for Unity
@@ -99,33 +134,26 @@ public class TextureAssetHandler : AssetTypeHandlerBase
             
             // Set the new texture data
             Logger.Log(LogLevel.Debug, $"Setting new texture data...");
-            try
-            {
-                textureFile.SetTextureData(bgraData, textureFile.m_Width, textureFile.m_Height);
-                Logger.Log(LogLevel.Debug, $"Texture data set successfully");
-            }
-            catch (Exception ex)
-            {
-                Logger.Log(LogLevel.Error, $"Failed to set texture data: {ex.Message}");
-                return null;
-            }
+            textureFile.SetTextureData(bgraData, textureFile.m_Width, textureFile.m_Height);
             
-            // Write the changes back to the base field
-            Logger.Log(LogLevel.Debug, $"Writing texture changes to base field...");
-            textureFile.WriteTo(baseField);
+            // Write the changes back to the texture field
+            Logger.Log(LogLevel.Debug, $"Writing texture changes...");
+            textureFile.WriteTo(textureBaseField);
             
             // Create replacer for the texture
-            Logger.Log(LogLevel.Debug, $"Creating ContentReplacerFromBuffer...");
-            var textureReplacer = new ContentReplacerFromBuffer(baseField.WriteToByteArray());
-            var wrapper = new AssetsReplacerWrapper(textureReplacer, assetInfo.PathId);
+            var textureReplacer = new ContentReplacerFromBuffer(textureBaseField.WriteToByteArray());
+            textureAssetInfo.Replacer = textureReplacer;
+                        
+            // Note: We don't need to create a replacer for the sprite itself since we're only modifying the texture
+            // The sprite will automatically use the updated texture
+            Logger.Log(LogLevel.Debug, $"Sprite asset replacement completed");
             
-            Logger.Log(LogLevel.Debug, $"Created texture replacer wrapper for PathId: {assetInfo.PathId}");
-            
-            return wrapper;
+            // Return a dummy replacer to indicate success (the actual replacement was done on the texture)
+            return new AssetsReplacerWrapper(textureReplacer, textureAssetInfo.PathId);
         }
         catch (Exception ex)
         {
-            Logger.Log(LogLevel.Error, $"Error preparing replacer for texture asset '{assetName}': {ex.Message}");
+            Logger.Log(LogLevel.Error, $"Error preparing replacer for sprite asset '{assetName}': {ex.Message}");
             Logger.Log(LogLevel.Debug, $"Exception type: {ex.GetType().Name}");
             Logger.Log(LogLevel.Debug, $"Full stack trace: {ex.StackTrace}");
             
@@ -134,7 +162,7 @@ public class TextureAssetHandler : AssetTypeHandlerBase
                 Logger.Log(LogLevel.Debug, $"Inner exception: {ex.InnerException.Message}");
             }
             
-            ErrorHandler.Handle("Error preparing replacer for texture asset", ex);
+            ErrorHandler.Handle("Error preparing replacer for sprite asset", ex);
             return null;
         }
     }
