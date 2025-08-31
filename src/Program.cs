@@ -8,15 +8,28 @@ namespace WMO;
 
 internal static class Program
 {
-    private const string DEFAULT_GAME_PATH = @"C:\Program Files (x86)\Steam\steamapps\common\Whisper Mountain Outbreak\Whisper Mountain Outbreak_Data";
 
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        // Check for --debug command line argument
+        bool debugMode = args.Contains("--debug");
+        
         try
         {
             Logger.Log(LogLevel.Info, $"=== WMO Asset Patcher Started ===");
+            
+            // Configure logging level based on build configuration or debug flag
+#if DEBUG
+            SettingsHolder.LogLevel = LogLevel.Debug; // Show debug logs in debug mode
+#else
+            SettingsHolder.LogLevel = debugMode ? LogLevel.Debug : LogLevel.Info; // Show debug logs if --debug flag is used
+#endif
+            
             SettingsSaver.LoadSettings();
+
+            // Clean up any outdated backup data from previous runs
+            BackupManager.CleanupOutdatedBackups();
 
             // Show application info
             Console.WriteLine("Whisper Mountain Outbreak Asset Patcher");
@@ -39,8 +52,19 @@ internal static class Program
                 Console.WriteLine("File naming: Your files should be named with the name of the asset you want to modify");
                 Console.WriteLine("Example: bgm-lobby.ogg will replace 'bgm-lobby' in the game");
                 Console.WriteLine();
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
+#if DEBUG
+                Console.WriteLine("DEBUG MODE: Exiting automatically...");
+#else
+                if (debugMode)
+                {
+                    Console.WriteLine("DEBUG MODE: Exiting automatically...");
+                }
+                else
+                {
+                    Console.WriteLine("Press any key to exit...");
+                    Console.ReadKey();
+                }
+#endif
                 return;
             }
 
@@ -63,45 +87,90 @@ internal static class Program
             }
             Console.WriteLine();
 
-            // Get game path from user
-            string gamePath = GetGamePath();
-            if (string.IsNullOrEmpty(gamePath))
-            {
-                Console.WriteLine(" No valid game path provided. Exiting...");
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
-                return;
-            }
-
+            // Get game path - different behavior for debug vs release
+            string gamePath;
+            
+#if DEBUG
+            // In debug mode, always use default path and skip user input
+            Console.WriteLine("DEBUG MODE: Using default game path and skipping user input.");
+            gamePath = SettingsHolder.DEFAULT_GAME_PATH;
             Console.WriteLine($"Using game path: {gamePath}");
             Console.WriteLine();
+#else
+            if (debugMode)
+            {
+                // Release mode with --debug flag: behave like debug mode
+                Console.WriteLine("DEBUG MODE: Using default game path and skipping user input.");
+                gamePath = SettingsHolder.DEFAULT_GAME_PATH;
+                Console.WriteLine($"Using game path: {gamePath}");
+                Console.WriteLine();
+            }
+            else
+            {
+                // Normal release mode: always ask user about path
+                gamePath = GetGamePath();
+                if (string.IsNullOrEmpty(gamePath))
+                {
+                    Console.WriteLine(" No valid game path provided. Exiting...");
+                    Console.WriteLine("Press any key to exit...");
+                    Console.ReadKey();
+                    return;
+                }
+
+                Console.WriteLine($"Using game path: {gamePath}");
+                Console.WriteLine();
+            }
+#endif
 
             // Verify the path exists and contains the game
             if (!VerifyGamePath(gamePath))
             {
                 Console.WriteLine(" The specified path doesn't appear to contain Whisper Mountain Outbreak.");
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
+#if !DEBUG
+                if (!debugMode)
+                {
+                    Console.WriteLine("Press any key to exit...");
+                    Console.ReadKey();
+                }
+#endif
                 return;
             }
             // Generate asset list for user reference
             Console.WriteLine();
-      
-            // Confirm before patching
-            Console.WriteLine("Ready to start patching. This will modify game files.");
-            Console.Write("Continue? (Y/N): ");
-            
-            var response = Console.ReadKey().KeyChar;
+
+#if DEBUG
+            // In debug mode, skip confirmation and start patching directly
+            Console.WriteLine("DEBUG MODE: Starting patching process automatically...");
             Console.WriteLine();
-            Console.WriteLine();
-            
-            if (char.ToUpper(response) != 'Y')
+#else      
+            if (debugMode)
             {
-                Console.WriteLine("Patching cancelled.");
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
-                return;
+                // Release mode with --debug flag: behave like debug mode
+                Console.WriteLine("DEBUG MODE: Starting patching process automatically...");
+                Console.WriteLine();
             }
+            else
+            {
+                // Normal release mode: ask for confirmation
+                Console.WriteLine("Ready to start patching. This will modify game files.");
+                Console.Write("Continue? (Y/N): ");
+                
+                var response = Console.ReadKey().KeyChar;
+                Console.WriteLine();
+                Console.WriteLine();
+                
+                if (char.ToUpper(response) != 'Y')
+                {
+                    Console.WriteLine("Patching cancelled.");
+                    if (!debugMode)
+                    {
+                        Console.WriteLine("Press any key to exit...");
+                        Console.ReadKey();
+                    }
+                    return;
+                }
+            }
+#endif
 
             // Start patching process
             Console.WriteLine("Starting patching process...");
@@ -122,16 +191,38 @@ internal static class Program
             }
 
             Console.WriteLine();
-            Console.WriteLine("Press any key to exit...");
-           Console.ReadKey();
+#if DEBUG
+            Console.WriteLine("DEBUG MODE: Exiting automatically...");
+#else
+            if (debugMode)
+            {
+                Console.WriteLine("DEBUG MODE: Exiting automatically...");
+            }
+            else
+            {
+                Console.WriteLine("Press any key to exit...");
+                Console.ReadKey();
+            }
+#endif
         }
         catch (Exception ex)
         {
             Logger.Log(LogLevel.Error, $"Unhandled exception in main: {ex}");
             Console.WriteLine();
             Console.WriteLine($" Fatal error: {ex.Message}");
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
+#if DEBUG
+            Console.WriteLine("DEBUG MODE: Exiting automatically...");
+#else
+            if (debugMode)
+            {
+                Console.WriteLine("DEBUG MODE: Exiting automatically...");
+            }
+            else
+            {
+                Console.WriteLine("Press any key to exit...");
+                Console.ReadKey();
+            }
+#endif
         }
     }
 
@@ -144,7 +235,7 @@ internal static class Program
         Console.WriteLine("Game Path Configuration");
         Console.WriteLine("======================");
         Console.WriteLine();
-        Console.WriteLine($"Default path: {DEFAULT_GAME_PATH}");
+        Console.WriteLine($"Default path: {SettingsHolder.DEFAULT_GAME_PATH}");
         Console.WriteLine();
         Console.Write("Use the default path? (Y/N): ");
         
@@ -155,7 +246,7 @@ internal static class Program
         if (useDefault)
         {
             Console.WriteLine("Using default game path.");
-            return DEFAULT_GAME_PATH;
+            return SettingsHolder.DEFAULT_GAME_PATH;
         }
 
         Console.WriteLine("Please enter the path to your game's data directory:");
