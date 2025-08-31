@@ -237,17 +237,21 @@ public class AudioAssetHandler : AssetTypeHandlerBase
         }
         catch (Exception ex)
         {
-            Logger.Log(LogLevel.Error, $"Error preparing replacer for audio asset '{assetName}': {ex.Message}");
-            Logger.Log(LogLevel.Debug, $"Exception type: {ex.GetType().Name}");
-            Logger.Log(LogLevel.Debug, $"Full stack trace: {ex.StackTrace}");
+            Logger.Log(LogLevel.Error, $"Critical error preparing replacer for audio asset '{assetName}': {ex.Message}");
+            Logger.Log(LogLevel.Error, $"Exception type: {ex.GetType().FullName}");
+            Logger.Log(LogLevel.Error, $"Stack trace: {ex.StackTrace}");
             
             if (ex.InnerException != null)
             {
-                Logger.Log(LogLevel.Debug, $"Inner exception: {ex.InnerException.Message}");
+                Logger.Log(LogLevel.Error, $"Inner exception: {ex.InnerException.Message}");
+                Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
+                Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
             }
             
-            ErrorHandler.Handle("Error preparing replacer for audio asset", ex);
-            return null;
+            ErrorHandler.Handle($"Critical error preparing replacer for audio asset '{assetName}'", ex);
+            
+            // Re-throw the exception to stop the patching process
+            throw new Exception($"Failed to create replacer for audio asset '{assetName}'", ex);
         }
     }
 }

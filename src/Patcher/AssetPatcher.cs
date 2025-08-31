@@ -43,6 +43,29 @@ public static class AssetPatcher
                 Logger.Log(LogLevel.Debug, $"  - {Path.GetFileName(file)}");
             }
 
+            // Check if any assets files are locked by other processes before starting
+            Logger.Log(LogLevel.Info, $"Checking if assets files are accessible...");
+            var lockedFiles = CheckForLockedFiles(assetsFiles, gamePath);
+            if (lockedFiles.Count > 0)
+            {
+                Logger.Log(LogLevel.Error, $"Cannot proceed with patching: {lockedFiles.Count} file(s) are currently in use by another process");
+                Logger.Log(LogLevel.Error, $"Locked files:");
+                foreach (var lockedFile in lockedFiles)
+                {
+                    Logger.Log(LogLevel.Error, $"  - {Path.GetFileName(lockedFile)}");
+                }
+                
+                Console.WriteLine($" Error: Some game files are currently in use by another process.");
+                Console.WriteLine($"Please close the following programs and try again:");
+                Console.WriteLine($"  - The game itself");
+                Console.WriteLine($"  - Unity Asset Bundle Extractor (UABE)");
+                Console.WriteLine($"  - Any other tools that might be accessing game files");
+                Console.WriteLine($"");
+                Console.WriteLine($"Files in use: {string.Join(", ", lockedFiles.Select(Path.GetFileName))}");
+                
+                return false;
+            }
+
             bool patchedAny = false;
             int totalPatchedAssets = 0;
             int processedFiles = 0;
@@ -73,35 +96,71 @@ public static class AssetPatcher
                 processedFiles++;
                 var fileName = Path.GetFileName(assetsFile);
                 
-                // Create backup before processing
-                Logger.Log(LogLevel.Debug, $"Creating backup for: {fileName}");
-                var backupPath = BackupManager.CreateBackup(assetsFile);
-                if (backupPath != null)
+                try
                 {
-                    Logger.Log(LogLevel.Debug, $"Backup created at: {backupPath}");
+                    // Create backup before processing
+                    Logger.Log(LogLevel.Debug, $"Creating backup for: {fileName}");
+                    var backupPath = BackupManager.CreateBackup(assetsFile);
+                    if (backupPath != null)
+                    {
+                        Logger.Log(LogLevel.Debug, $"Backup created at: {backupPath}");
+                    }
+                    else
+                    {
+                        Logger.Log(LogLevel.Error, $"Failed to create backup for: {fileName}");
+                        return false; // Abort if backup fails
+                    }
+                    
+                    Logger.Log(LogLevel.Info, $"Processing file {processedFiles}/{assetsFiles.Length}: {fileName}");
+                    Logger.Log(LogLevel.Debug, $"File path: {assetsFile}");
+                    Logger.Log(LogLevel.Debug, $"File size: {new FileInfo(assetsFile).Length} bytes");
+                    Logger.Log(LogLevel.Debug, $"Remaining mods to patch: {modsCollection.TotalCount} (Audio: {modsCollection.AudioMods.Count}, Sprites: {modsCollection.SpriteMods.Count}, Textures: {modsCollection.TextureMods.Count})");
+                    
+                    var patchedCount = PatchAssetsInFile(assetsFile, modsCollection);
+                    if (patchedCount > 0)
+                    {
+                        totalPatchedAssets += patchedCount;
+                        modifiedFiles.Add(assetsFile); // Track this file as modified
+                        patchedAny = true;
+                        Logger.Log(LogLevel.Success, $"Successfully patched {patchedCount} assets in {fileName}");
+                    }
+                    else
+                    {
+                        Logger.Log(LogLevel.Debug, $"No matching assets found in {fileName}");
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    Logger.Log(LogLevel.Error, $"Failed to create backup for: {fileName}");
-                    return false; // Abort if backup fails
-                }
-                
-                Logger.Log(LogLevel.Info, $"Processing file {processedFiles}/{assetsFiles.Length}: {fileName}");
-                Logger.Log(LogLevel.Debug, $"File path: {assetsFile}");
-                Logger.Log(LogLevel.Debug, $"File size: {new FileInfo(assetsFile).Length} bytes");
-                Logger.Log(LogLevel.Debug, $"Remaining mods to patch: {modsCollection.TotalCount} (Audio: {modsCollection.AudioMods.Count}, Sprites: {modsCollection.SpriteMods.Count}, Textures: {modsCollection.TextureMods.Count})");
-                
-                var patchedCount = PatchAssetsInFile(assetsFile, modsCollection);
-                if (patchedCount > 0)
-                {
-                    patchedAny = true;
-                    totalPatchedAssets += patchedCount;
-                    modifiedFiles.Add(assetsFile); // Track this file as modified
-                    Logger.Log(LogLevel.Success, $"Successfully patched {patchedCount} assets in {fileName}");
-                }
-                else
-                {
-                    Logger.Log(LogLevel.Debug, $"No matching assets found in {fileName}");
+                    Logger.Log(LogLevel.Error, $"Critical error while processing file {fileName}: {ex.Message}");
+                    Logger.Log(LogLevel.Error, $"Exception type: {ex.GetType().FullName}");
+                    Logger.Log(LogLevel.Error, $"Stack trace: {ex.StackTrace}");
+                    if (ex.InnerException != null)
+                    {
+                        Logger.Log(LogLevel.Error, $"Inner exception: {ex.InnerException.Message}");
+                        Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
+                        Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
+                    }
+                    
+                    Console.WriteLine($" Critical error while processing {fileName}: {ex.Message}");
+                    Console.WriteLine($"Full error details have been logged.");
+                    
+                    // Stop the entire process and recover backups
+                    Logger.Log(LogLevel.Error, $"Stopping patching process due to critical error in {fileName}");
+                    Logger.Log(LogLevel.Info, $"Attempting to recover all files from backups...");
+                    
+                    if (BackupManager.RecoverBackups())
+                    {
+                        Logger.Log(LogLevel.Info, $"Successfully recovered all files from backups");
+                        Console.WriteLine($"All files have been restored from backups due to the error.");
+                    }
+                    else
+                    {
+                        Logger.Log(LogLevel.Error, $"Failed to recover some files from backups");
+                        Console.WriteLine($"Warning: Some files may not have been restored properly. Check your game installation.");
+                    }
+                    
+                    ErrorHandler.Handle($"Critical error processing file {fileName}", ex);
+                    return false;
                 }
             }
 
@@ -141,9 +200,18 @@ public static class AssetPatcher
         catch (Exception ex)
         {
             Logger.Log(LogLevel.Error, $"Critical error during patching process: {ex.Message}");
-            Logger.Log(LogLevel.Debug, $"Exception type: {ex.GetType().Name}");
-            Logger.Log(LogLevel.Debug, $"Stack trace: {ex.StackTrace}");
-            Console.WriteLine($" Error during patching: {ex.Message}");
+            Logger.Log(LogLevel.Error, $"Exception type: {ex.GetType().FullName}");
+            Logger.Log(LogLevel.Error, $"Stack trace: {ex.StackTrace}");
+            
+            if (ex.InnerException != null)
+            {
+                Logger.Log(LogLevel.Error, $"Inner exception: {ex.InnerException.Message}");
+                Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
+                Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
+            }
+            
+            Console.WriteLine($" Critical error during patching: {ex.Message}");
+            Console.WriteLine($"Full error details have been logged.");
             
             // Attempt to recover from backups
             Logger.Log(LogLevel.Warning, $"Attempting to recover from backups due to error...");
@@ -276,7 +344,7 @@ public static class AssetPatcher
                         {
                             Logger.Log(LogLevel.Debug, $"Found matching asset! Path ID: {assetInfo.PathId}, Name: '{name}'");
                             
-                            // Create replacer for this asset
+                            // Create replacer for this asset - this may throw an exception
                             Logger.Log(LogLevel.Debug, $"Creating replacer for asset: {assetName}");
                             var replacer = AudioAssetHandler.CreateReplacer(manager, fileInst, assetInfo, assetName, assetData);
                             
@@ -299,8 +367,18 @@ public static class AssetPatcher
                     }
                     catch (Exception ex)
                     {
-                        Logger.Log(LogLevel.Debug, $"Error processing asset ID {assetInfo.PathId}: {ex.Message}");
-                        continue;
+                        Logger.Log(LogLevel.Error, $"Critical error processing asset ID {assetInfo.PathId} for mod {assetName}: {ex.Message}");
+                        Logger.Log(LogLevel.Error, $"Exception type: {ex.GetType().FullName}");
+                        Logger.Log(LogLevel.Error, $"Stack trace: {ex.StackTrace}");
+                        if (ex.InnerException != null)
+                        {
+                            Logger.Log(LogLevel.Error, $"Inner exception: {ex.InnerException.Message}");
+                            Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
+                            Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
+                        }
+                        
+                        // Re-throw the exception to stop the patching process
+                        throw new Exception($"Failed to process asset ID {assetInfo.PathId} for mod {assetName}", ex);
                     }
                 }
                 
@@ -356,37 +434,19 @@ public static class AssetPatcher
         catch (Exception ex)
         {
             var fileName = Path.GetFileName(assetsFilePath);
-            Logger.Log(LogLevel.Error, $"Error during batch processing of {fileName}: {ex.Message}");
-            Logger.Log(LogLevel.Debug, $"Exception type: {ex.GetType().Name}");
-            Logger.Log(LogLevel.Debug, $"Full stack trace: {ex.StackTrace}");
+            Logger.Log(LogLevel.Error, $"Critical error during batch processing of {fileName}: {ex.Message}");
+            Logger.Log(LogLevel.Error, $"Exception type: {ex.GetType().FullName}");
+            Logger.Log(LogLevel.Error, $"Stack trace: {ex.StackTrace}");
             
             if (ex.InnerException != null)
             {
-                Logger.Log(LogLevel.Debug, $"Inner exception: {ex.InnerException.Message}");
+                Logger.Log(LogLevel.Error, $"Inner exception: {ex.InnerException.Message}");
+                Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
+                Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
             }
             
-            // Attempt to restore this specific file from backup
-            Logger.Log(LogLevel.Warning, $"Attempting to restore {fileName} from backup due to processing error...");
-            var backupPath = BackupManager.GetBackupPath(assetsFilePath);
-            if (backupPath != null && File.Exists(backupPath))
-            {
-                try
-                {
-                    File.Copy(backupPath, assetsFilePath, true);
-                    Logger.Log(LogLevel.Info, $"Successfully restored {fileName} from backup");
-                }
-                catch (Exception restoreEx)
-                {
-                    Logger.Log(LogLevel.Error, $"Failed to restore {fileName} from backup: {restoreEx.Message}");
-                }
-            }
-            else
-            {
-                Logger.Log(LogLevel.Warning, $"No backup found for {fileName} to restore from");
-            }
-            
-            ErrorHandler.Handle("Error during batch processing", ex);
-            return 0;
+            // Re-throw the exception to propagate it up and stop the entire patching process
+            throw new Exception($"Critical error during batch processing of {fileName}", ex);
         }
         finally
         {
@@ -401,6 +461,90 @@ public static class AssetPatcher
             {
                 Logger.Log(LogLevel.Warning, $"Error during resource cleanup: {ex.Message}");
             }
+        }
+    }
+
+    /// <summary>
+    /// Checks if any of the specified files or their associated resource files are locked by other processes
+    /// </summary>
+    /// <param name="assetsFiles">Array of assets file paths to check</param>
+    /// <param name="gamePath">Game directory path to scan for resource files</param>
+    /// <returns>List of file paths that are currently locked</returns>
+    private static List<string> CheckForLockedFiles(string[] assetsFiles, string gamePath)
+    {
+        var lockedFiles = new List<string>();
+        
+        Logger.Log(LogLevel.Debug, $"Checking {assetsFiles.Length} assets files for locks...");
+        
+        // Check all .assets files
+        foreach (var assetsFile in assetsFiles)
+        {
+            Logger.Log(LogLevel.Trace, $"Checking if file is locked: {Path.GetFileName(assetsFile)}");
+            if (IsFileLocked(assetsFile))
+            {
+                Logger.Log(LogLevel.Debug, $"File is locked: {assetsFile}");
+                lockedFiles.Add(assetsFile);
+            }
+        }
+        
+        // Find and check all .resS files (resource files)
+        Logger.Log(LogLevel.Debug, $"Scanning for resource files (.resS) in game directory...");
+        var resourceFiles = Directory.GetFiles(gamePath, "*.resS", SearchOption.AllDirectories);
+        Logger.Log(LogLevel.Debug, $"Found {resourceFiles.Length} resource files to check");
+        
+        foreach (var resourceFile in resourceFiles)
+        {
+            Logger.Log(LogLevel.Trace, $"Checking if resource file is locked: {Path.GetFileName(resourceFile)}");
+            if (IsFileLocked(resourceFile))
+            {
+                Logger.Log(LogLevel.Debug, $"Resource file is locked: {resourceFile}");
+                lockedFiles.Add(resourceFile);
+            }
+        }
+        
+        Logger.Log(LogLevel.Debug, $"File lock check completed. {lockedFiles.Count} files are locked");
+        return lockedFiles;
+    }
+
+    /// <summary>
+    /// Checks if a specific file is locked by another process
+    /// </summary>
+    /// <param name="filePath">Path to the file to check</param>
+    /// <returns>True if the file is locked, false otherwise</returns>
+    private static bool IsFileLocked(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            Logger.Log(LogLevel.Trace, $"File does not exist, not locked: {filePath}");
+            return false;
+        }
+        
+        try
+        {
+            // Try to open the file with exclusive access
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Logger.Log(LogLevel.Trace, $"File is not locked: {Path.GetFileName(filePath)}");
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Logger.Log(LogLevel.Trace, $"File access denied (may be read-only or permissions issue): {filePath}");
+            return true;
+        }
+        catch (IOException ex) when (ex.HResult == -2147024864) // 0x80070020 - The process cannot access the file because it is being used by another process
+        {
+            Logger.Log(LogLevel.Trace, $"File is locked by another process: {filePath}");
+            return true;
+        }
+        catch (IOException)
+        {
+            Logger.Log(LogLevel.Trace, $"File has I/O issues (treating as locked): {filePath}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Debug, $"Unexpected error checking file lock status for {filePath}: {ex.Message}");
+            return true; // Treat any other exception as locked to be safe
         }
     }
 }
