@@ -43,14 +43,17 @@ internal static class Program
             Console.WriteLine();
 
             var modsCollection = ModsDataManager.GetModsCollection();
-            if (modsCollection.TotalCount == 0)
+            if (modsCollection.TotalAssetCount == 0)
             {
                 Console.WriteLine(" No mod files found!");
-                Console.WriteLine($"Please place your mod files in the mods folder:");
+                Console.WriteLine($"Please create mod packages in the mods folder:");
                 Console.WriteLine($"{modsPath}");
                 Console.WriteLine();
-                Console.WriteLine("File naming: Your files should be named with the name of the asset you want to modify");
-                Console.WriteLine("Example: bgm-lobby.ogg will replace 'bgm-lobby' in the game");
+                Console.WriteLine("MOD PACKAGE SYSTEM:");
+                Console.WriteLine("Create folders for each mod, and place your files inside:");
+                Console.WriteLine("  mods/MyMod/bgm-lobby.ogg");
+                Console.WriteLine("  mods/MyMod/head-default-0.png");
+                Console.WriteLine("  mods/AnotherMod/sfx-cancel.ogg");
                 Console.WriteLine();
 #if DEBUG
                 Console.WriteLine("DEBUG MODE: Exiting automatically...");
@@ -68,21 +71,41 @@ internal static class Program
                 return;
             }
 
-            Console.WriteLine($" Found {modsCollection.TotalCount} mod files:");
-            if (modsCollection.AudioMods.Count > 0)
+            Console.WriteLine($" Found {modsCollection.ModPackages.Count} mod packages with {modsCollection.TotalAssetCount} total assets:");
+            foreach (var modPackage in modsCollection.ModPackages)
             {
-                Console.WriteLine("   Audio mods:");
-                foreach (var mod in modsCollection.AudioMods)
+                Console.WriteLine($"   📦 {modPackage.Name}:");
+                if (modPackage.AudioAssets.Count > 0)
                 {
-                    Console.WriteLine($"      • {mod.AssetName}");
+                    Console.WriteLine($"      🎵 Audio ({modPackage.AudioAssets.Count}):");
+                    foreach (var asset in modPackage.AudioAssets)
+                    {
+                        Console.WriteLine($"         • {asset.AssetName}");
+                    }
                 }
-            }
-            if (modsCollection.SpriteMods.Count > 0)
-            {
-                Console.WriteLine("   Sprite mods:");
-                foreach (var mod in modsCollection.SpriteMods)
+                if (modPackage.SpriteAssets.Count > 0)
                 {
-                    Console.WriteLine($"      • {mod.AssetName}");
+                    Console.WriteLine($"      🖼️  Sprites ({modPackage.SpriteAssets.Count}):");
+                    foreach (var asset in modPackage.SpriteAssets)
+                    {
+                        Console.WriteLine($"         • {asset.AssetName}");
+                    }
+                }
+                if (modPackage.TextureAssets.Count > 0)
+                {
+                    Console.WriteLine($"      🎨 Textures ({modPackage.TextureAssets.Count}):");
+                    foreach (var asset in modPackage.TextureAssets)
+                    {
+                        Console.WriteLine($"         • {asset.AssetName}");
+                    }
+                }
+                if (modPackage.MonoBehaviourAssets.Count > 0)
+                {
+                    Console.WriteLine($"      ⚙️  MonoBehaviours ({modPackage.MonoBehaviourAssets.Count}):");
+                    foreach (var asset in modPackage.MonoBehaviourAssets)
+                    {
+                        Console.WriteLine($"         • {asset.AssetName}");
+                    }
                 }
             }
             Console.WriteLine();

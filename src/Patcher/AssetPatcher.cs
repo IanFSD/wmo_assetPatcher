@@ -12,7 +12,6 @@ public static class AssetPatcher
     public static bool TryPatch(string gamePath)
     {
         var modifiedFiles = new List<string>(); // Track all files that have been modified
-        
         try
         {
             Logger.Log(LogLevel.Info, $"Starting patching process for game path: {gamePath}");
@@ -73,10 +72,13 @@ public static class AssetPatcher
             // Load mods data once before processing
             Logger.Log(LogLevel.Info, $"Loading mods data...");
             var modsCollection = ModsDataManager.GetModsCollection();
-            Logger.Log(LogLevel.Info, $"Loaded {modsCollection.TotalCount} mod files total");
-            Logger.Log(LogLevel.Debug, $"Audio mods: {modsCollection.AudioMods.Count}");
+            Logger.Log(LogLevel.Info, $"Loaded {modsCollection.TotalAssetCount} assets from {modsCollection.ModPackages.Count} mod packages");
+            Logger.Log(LogLevel.Debug, $"Audio assets: {modsCollection.GetAllAudioAssets().Count()}");
+            Logger.Log(LogLevel.Debug, $"Sprite assets: {modsCollection.GetAllSpriteAssets().Count()}"); 
+            Logger.Log(LogLevel.Debug, $"Texture assets: {modsCollection.GetAllTextureAssets().Count()}");
+            Logger.Log(LogLevel.Debug, $"MonoBehaviour assets: {modsCollection.GetAllMonoBehaviourAssets().Count()}");
             
-            if (modsCollection.TotalCount == 0)
+            if (modsCollection.TotalAssetCount == 0)
             {
                 Logger.Log(LogLevel.Warning, $"No mod files found to process");
                 return false;
@@ -87,7 +89,7 @@ public static class AssetPatcher
             foreach (var assetsFile in assetsFiles)
             {
                 // Check if there are any mods left to patch
-                if (modsCollection.TotalCount == 0)
+                if (modsCollection.TotalAssetCount == 0)
                 {
                     Logger.Log(LogLevel.Info, $"All mods have been patched successfully. Stopping processing.");
                     break;
@@ -114,7 +116,11 @@ public static class AssetPatcher
                     Logger.Log(LogLevel.Info, $"Processing file {processedFiles}/{assetsFiles.Length}: {fileName}");
                     Logger.Log(LogLevel.Debug, $"File path: {assetsFile}");
                     Logger.Log(LogLevel.Debug, $"File size: {new FileInfo(assetsFile).Length} bytes");
-                    Logger.Log(LogLevel.Debug, $"Remaining mods to patch: {modsCollection.TotalCount} (Audio: {modsCollection.AudioMods.Count}, Sprites: {modsCollection.SpriteMods.Count}, Textures: {modsCollection.TextureMods.Count})");
+                    Logger.Log(LogLevel.Debug, $"Remaining assets to patch: {modsCollection.TotalAssetCount} " +
+                        $"(Audio: {modsCollection.GetAllAudioAssets().Count()}, " +
+                        $"Sprites: {modsCollection.GetAllSpriteAssets().Count()}, " +
+                        $"Textures: {modsCollection.GetAllTextureAssets().Count()}, " +
+                        $"MonoBehaviours: {modsCollection.GetAllMonoBehaviourAssets().Count()})");
                     
                     var patchedCount = PatchAssetsInFile(assetsFile, modsCollection);
                     if (patchedCount > 0)
@@ -264,136 +270,40 @@ public static class AssetPatcher
             Logger.Log(LogLevel.Debug, $"Loading class database for Unity version...");
             manager.LoadClassDatabaseFromPackage(afile.Metadata.UnityVersion);
             
-            // Get all audio assets from the file
-            Logger.Log(LogLevel.Debug, $"Scanning for AudioClip assets in {fileName}...");
+            // Get all relevant assets from the file
+            Logger.Log(LogLevel.Debug, $"Scanning for assets in {fileName}...");
             var audioAssets = afile.GetAssetsOfType((int)AssetClassID.AudioClip);
-            Logger.Log(LogLevel.Debug, $"Found {audioAssets.Count} AudioClip assets in {fileName}");
+            var spriteAssets = afile.GetAssetsOfType((int)AssetClassID.Sprite);
+            var textureAssets = afile.GetAssetsOfType((int)AssetClassID.Texture2D);
+            var monoBehaviourAssets = afile.GetAssetsOfType((int)AssetClassID.MonoBehaviour);
             
-            if (audioAssets.Count == 0) 
+            Logger.Log(LogLevel.Debug, $"Found assets in {fileName}: " +
+                $"{audioAssets.Count} audio, {spriteAssets.Count} sprites, " +
+                $"{textureAssets.Count} textures, {monoBehaviourAssets.Count} MonoBehaviours");
+            
+            var totalAssetsInFile = audioAssets.Count + spriteAssets.Count + textureAssets.Count + monoBehaviourAssets.Count;
+            if (totalAssetsInFile == 0) 
             {
-                Logger.Log(LogLevel.Debug, $"No audio assets found in {fileName}, skipping file");
+                Logger.Log(LogLevel.Debug, $"No relevant assets found in {fileName}, skipping file");
                 return 0;
-            }
-
-            // Log audio asset names for debugging
-            Logger.Log(LogLevel.Debug, $"Audio assets in {fileName}:");
-            foreach (var assetInfo in audioAssets)
-            {
-                try
-                {
-                    var baseField = manager.GetBaseField(fileInst, assetInfo);
-                    var assetName = baseField["m_Name"].AsString;
-                    Logger.Log(LogLevel.Trace, $"  - Asset ID {assetInfo.PathId}: '{assetName}'");
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log(LogLevel.Debug, $"  - Asset ID {assetInfo.PathId}: (failed to read name - {ex.Message})");
-                }
             }
 
             // Collect all replacers for this file
             var processedAssets = 0;
             var skippedAssets = 0;
-            var modsToRemove = new List<AudioMod>();
+            var assetsToRemove = new List<AssetBase>();
 
-            Logger.Log(LogLevel.Info, $"Processing {modsCollection.AudioMods.Count} audio mods against {audioAssets.Count} assets...");
+            // Process all asset types
+            processedAssets += ProcessAudioAssets(manager, fileInst, audioAssets, modsCollection.GetAllAudioAssets().ToList(), assetsToRemove, fileName);
+            processedAssets += ProcessSpriteAssets(manager, fileInst, spriteAssets, modsCollection.GetAllSpriteAssets().ToList(), assetsToRemove, fileName);
+            processedAssets += ProcessTextureAssets(manager, fileInst, textureAssets, modsCollection.GetAllTextureAssets().ToList(), assetsToRemove, fileName);
+            processedAssets += ProcessMonoBehaviourAssets(manager, fileInst, monoBehaviourAssets, modsCollection.GetAllMonoBehaviourAssets().ToList(), assetsToRemove, fileName);
 
-            foreach (var audioMod in modsCollection.AudioMods)
+            // Remove successfully patched assets from mod packages
+            foreach (var assetToRemove in assetsToRemove)
             {
-                var assetName = audioMod.AssetName + audioMod.FileExtension;
-                Logger.Log(LogLevel.Debug, $"Processing mod for asset: {assetName}");
-                
-                // Find the corresponding mod file
-                Logger.Log(LogLevel.Trace, $"Looking for mod file: {Path.GetFileNameWithoutExtension(assetName)}");
-                var modFilePath = ModsDataManager.GetModFilePath(Path.GetFileNameWithoutExtension(assetName));
-                
-                if (string.IsNullOrEmpty(modFilePath))
-                {
-                    Logger.Log(LogLevel.Debug, $"Mod file path not found for: {assetName}");
-                    skippedAssets++;
-                    continue;
-                }
-                
-                if (!File.Exists(modFilePath))
-                {
-                    Logger.Log(LogLevel.Warning, $"Mod file does not exist: {modFilePath}");
-                    skippedAssets++;
-                    continue;
-                }
-                
-                Logger.Log(LogLevel.Debug, $"Loading mod file data from: {modFilePath}");
-                var fileInfo = new FileInfo(modFilePath);
-                Logger.Log(LogLevel.Debug, $"Mod file size: {fileInfo.Length} bytes");
-                var assetData = File.ReadAllBytes(modFilePath);
-                
-                // Find the matching asset in the assets file
-                bool assetFound = false;
-                var targetAssetName = Path.GetFileNameWithoutExtension(assetName);
-                Logger.Log(LogLevel.Debug, $"Searching for matching asset with name: '{targetAssetName}'");
-                
-                foreach (var assetInfo in audioAssets)
-                {
-                    try
-                    {
-                        var baseField = manager.GetBaseField(fileInst, assetInfo);
-                        var name = baseField["m_Name"].AsString;
-                        
-                        Logger.Log(LogLevel.Trace, $"Comparing asset '{name}' with target '{targetAssetName}'");
-                        
-                        if (name == targetAssetName)
-                        {
-                            Logger.Log(LogLevel.Debug, $"Found matching asset! Path ID: {assetInfo.PathId}, Name: '{name}'");
-                            
-                            // Create replacer for this asset - this may throw an exception
-                            Logger.Log(LogLevel.Debug, $"Creating replacer for asset: {assetName}");
-                            var replacer = AudioAssetHandler.CreateReplacer(manager, fileInst, assetInfo, assetName, assetData);
-                            
-                            if (replacer is AssetsReplacerWrapper wrapper)
-                            {
-                                // Set the replacer directly on the asset info
-                                assetInfo.Replacer = wrapper.GetAssetsReplacer();
-                                processedAssets++;
-                                assetFound = true;
-                                modsToRemove.Add(audioMod); // Mark for removal
-                                Logger.Log(LogLevel.Success, $"Successfully prepared replacer for: {assetName} (Path ID: {assetInfo.PathId})");
-                                break; // Found the asset, move to next mod
-                            }
-                            else
-                            {
-                                Logger.Log(LogLevel.Warning, $"Failed to create replacer for: {assetName}");
-                                skippedAssets++;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Log(LogLevel.Error, $"Critical error processing asset ID {assetInfo.PathId} for mod {assetName}: {ex.Message}");
-                        Logger.Log(LogLevel.Error, $"Exception type: {ex.GetType().FullName}");
-                        Logger.Log(LogLevel.Error, $"Stack trace: {ex.StackTrace}");
-                        if (ex.InnerException != null)
-                        {
-                            Logger.Log(LogLevel.Error, $"Inner exception: {ex.InnerException.Message}");
-                            Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
-                            Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
-                        }
-                        
-                        // Re-throw the exception to stop the patching process
-                        throw new Exception($"Failed to process asset ID {assetInfo.PathId} for mod {assetName}", ex);
-                    }
-                }
-                
-                if (!assetFound)
-                {
-                    Logger.Log(LogLevel.Debug, $"No matching asset found for mod: {assetName}");
-                    skippedAssets++;
-                }
-            }
-
-            // Remove successfully patched mods from the collection
-            foreach (var modToRemove in modsToRemove)
-            {
-                modsCollection.AudioMods.Remove(modToRemove);
-                Logger.Log(LogLevel.Debug, $"Removed successfully patched mod from collection: {modToRemove.AssetName}");
+                RemoveAssetFromModPackages(modsCollection, assetToRemove);
+                Logger.Log(LogLevel.Debug, $"Removed successfully patched asset from collection: {assetToRemove.AssetName}");
             }
 
             Logger.Log(LogLevel.Info, $"Asset processing summary for {fileName}: {processedAssets} processed, {skippedAssets} skipped");
@@ -460,6 +370,214 @@ public static class AssetPatcher
             catch (Exception ex)
             {
                 Logger.Log(LogLevel.Warning, $"Error during resource cleanup: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes audio assets and creates replacers for matching mods
+    /// </summary>
+    private static int ProcessAudioAssets(AssetsManager manager, AssetsFileInstance fileInst, 
+        List<AssetFileInfo> audioAssets, List<AudioAsset> audioMods, List<AssetBase> assetsToRemove, string fileName)
+    {
+        if (audioAssets.Count == 0 || audioMods.Count == 0) return 0;
+        
+        Logger.Log(LogLevel.Info, $"Processing {audioMods.Count} audio mods against {audioAssets.Count} assets in {fileName}...");
+        
+        var processedCount = 0;
+        
+        foreach (var audioMod in audioMods)
+        {
+            var assetName = audioMod.AssetName + audioMod.FileExtension;
+            Logger.Log(LogLevel.Debug, $"Processing audio mod for asset: {assetName}");
+            
+            var assetData = File.ReadAllBytes(audioMod.FilePath);
+            var targetAssetName = audioMod.AssetName;
+            
+            foreach (var assetInfo in audioAssets)
+            {
+                try
+                {
+                    var baseField = manager.GetBaseField(fileInst, assetInfo);
+                    var name = baseField["m_Name"].AsString;
+                    
+                    if (name == targetAssetName)
+                    {
+                        Logger.Log(LogLevel.Debug, $"Found matching audio asset! Path ID: {assetInfo.PathId}, Name: '{name}'");
+                        
+                        var replacer = AudioAssetHandler.CreateReplacer(manager, fileInst, assetInfo, assetName, assetData);
+                        
+                        if (replacer is AssetsReplacerWrapper wrapper)
+                        {
+                            assetInfo.Replacer = wrapper.GetAssetsReplacer();
+                            processedCount++;
+                            assetsToRemove.Add(audioMod);
+                            Logger.Log(LogLevel.Success, $"Successfully prepared audio replacer for: {assetName}");
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, $"Error processing audio asset {assetInfo.PathId}: {ex.Message}");
+                    throw;
+                }
+            }
+        }
+        
+        return processedCount;
+    }
+    
+    /// <summary>
+    /// Processes sprite assets and creates replacers for matching mods
+    /// </summary>
+    private static int ProcessSpriteAssets(AssetsManager manager, AssetsFileInstance fileInst, 
+        List<AssetFileInfo> spriteAssets, List<SpriteAsset> spriteMods, List<AssetBase> assetsToRemove, string fileName)
+    {
+        if (spriteAssets.Count == 0 || spriteMods.Count == 0) return 0;
+        
+        Logger.Log(LogLevel.Info, $"Processing {spriteMods.Count} sprite mods against {spriteAssets.Count} assets in {fileName}...");
+        
+        var processedCount = 0;
+        
+        foreach (var spriteMod in spriteMods)
+        {
+            var assetName = spriteMod.AssetName + spriteMod.FileExtension;
+            Logger.Log(LogLevel.Debug, $"Processing sprite mod for asset: {assetName}");
+            
+            var assetData = File.ReadAllBytes(spriteMod.FilePath);
+            var targetAssetName = spriteMod.AssetName;
+            
+            foreach (var assetInfo in spriteAssets)
+            {
+                try
+                {
+                    var baseField = manager.GetBaseField(fileInst, assetInfo);
+                    var name = baseField["m_Name"].AsString;
+                    
+                    if (name == targetAssetName)
+                    {
+                        Logger.Log(LogLevel.Debug, $"Found matching sprite asset! Path ID: {assetInfo.PathId}, Name: '{name}'");
+                        
+                        var replacer = SpriteAssetHandler.CreateReplacer(manager, fileInst, assetInfo, assetName, assetData);
+                        
+                        if (replacer is AssetsReplacerWrapper wrapper)
+                        {
+                            assetInfo.Replacer = wrapper.GetAssetsReplacer();
+                            processedCount++;
+                            assetsToRemove.Add(spriteMod);
+                            Logger.Log(LogLevel.Success, $"Successfully prepared sprite replacer for: {assetName}");
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, $"Error processing sprite asset {assetInfo.PathId}: {ex.Message}");
+                    throw;
+                }
+            }
+        }
+        
+        return processedCount;
+    }
+    
+    /// <summary>
+    /// Processes texture assets and creates replacers for matching mods
+    /// </summary>
+    private static int ProcessTextureAssets(AssetsManager manager, AssetsFileInstance fileInst, 
+        List<AssetFileInfo> textureAssets, List<TextureAsset> textureMods, List<AssetBase> assetsToRemove, string fileName)
+    {
+        if (textureAssets.Count == 0 || textureMods.Count == 0) return 0;
+        
+        Logger.Log(LogLevel.Info, $"Processing {textureMods.Count} texture mods against {textureAssets.Count} assets in {fileName}...");
+        
+        var processedCount = 0;
+        
+        foreach (var textureMod in textureMods)
+        {
+            var assetName = textureMod.AssetName + textureMod.FileExtension;
+            Logger.Log(LogLevel.Debug, $"Processing texture mod for asset: {assetName}");
+            
+            var assetData = File.ReadAllBytes(textureMod.FilePath);
+            var targetAssetName = textureMod.AssetName;
+            
+            foreach (var assetInfo in textureAssets)
+            {
+                try
+                {
+                    var baseField = manager.GetBaseField(fileInst, assetInfo);
+                    var name = baseField["m_Name"].AsString;
+                    
+                    if (name == targetAssetName)
+                    {
+                        Logger.Log(LogLevel.Debug, $"Found matching texture asset! Path ID: {assetInfo.PathId}, Name: '{name}'");
+                        
+                        var replacer = TextureAssetHandler.CreateReplacer(manager, fileInst, assetInfo, assetName, assetData);
+                        
+                        if (replacer is AssetsReplacerWrapper wrapper)
+                        {
+                            assetInfo.Replacer = wrapper.GetAssetsReplacer();
+                            processedCount++;
+                            assetsToRemove.Add(textureMod);
+                            Logger.Log(LogLevel.Success, $"Successfully prepared texture replacer for: {assetName}");
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, $"Error processing texture asset {assetInfo.PathId}: {ex.Message}");
+                    throw;
+                }
+            }
+        }
+        
+        return processedCount;
+    }
+    
+    /// <summary>
+    /// Processes MonoBehaviour assets and creates replacers for matching mods
+    /// </summary>
+    private static int ProcessMonoBehaviourAssets(AssetsManager manager, AssetsFileInstance fileInst, 
+        List<AssetFileInfo> monoBehaviourAssets, List<MonoBehaviourAsset> monoBehaviourMods, List<AssetBase> assetsToRemove, string fileName)
+    {
+        if (monoBehaviourAssets.Count == 0 || monoBehaviourMods.Count == 0) return 0;
+        
+        Logger.Log(LogLevel.Info, $"Processing {monoBehaviourMods.Count} MonoBehaviour mods against {monoBehaviourAssets.Count} assets in {fileName}...");
+        Logger.Log(LogLevel.Info, $"MonoBehaviour processing not yet implemented - skipping for now");
+        
+        // TODO: Implement MonoBehaviour processing when MonoBehaviourAssetHandler is available
+        // For now, just log that we found MonoBehaviour mods but skip processing
+        foreach (var monoBehaviourMod in monoBehaviourMods)
+        {
+            Logger.Log(LogLevel.Debug, $"Found MonoBehaviour mod (not processed): {monoBehaviourMod.AssetName}");
+        }
+        
+        return 0;
+    }
+    
+    /// <summary>
+    /// Removes a successfully patched asset from all mod packages
+    /// </summary>
+    private static void RemoveAssetFromModPackages(ModsCollection modsCollection, AssetBase assetToRemove)
+    {
+        foreach (var modPackage in modsCollection.ModPackages)
+        {
+            switch (assetToRemove)
+            {
+                case AudioAsset audioAsset:
+                    modPackage.AudioAssets.RemoveAll(a => a.AssetName == audioAsset.AssetName);
+                    break;
+                case SpriteAsset spriteAsset:
+                    modPackage.SpriteAssets.RemoveAll(s => s.AssetName == spriteAsset.AssetName);
+                    break;
+                case TextureAsset textureAsset:
+                    modPackage.TextureAssets.RemoveAll(t => t.AssetName == textureAsset.AssetName);
+                    break;
+                case MonoBehaviourAsset monoBehaviourAsset:
+                    modPackage.MonoBehaviourAssets.RemoveAll(m => m.AssetName == monoBehaviourAsset.AssetName);
+                    break;
             }
         }
     }
