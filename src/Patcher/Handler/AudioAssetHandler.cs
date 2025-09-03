@@ -61,7 +61,7 @@ public class AudioAssetHandler : AssetTypeHandlerBase
                 }
                 else if (ext == ".mp3") 
                 {
-                    Logger.Log(LogLevel.Debug, $"Processing as MP3 file");
+                        Logger.Log(LogLevel.Debug, $"Processing as MP3 file");
                     reader = new Mp3FileReader(ms);
                     writeData = data; // Use original MP3 data
                 }

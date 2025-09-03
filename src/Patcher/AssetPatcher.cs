@@ -269,9 +269,15 @@ public static class AssetPatcher
             var audioAssets = afile.GetAssetsOfType((int)AssetClassID.AudioClip);
             Logger.Log(LogLevel.Debug, $"Found {audioAssets.Count} AudioClip assets in {fileName}");
             
-            if (audioAssets.Count == 0) 
+            // Get all MonoBehaviour assets from the file
+            Logger.Log(LogLevel.Debug, $"Scanning for MonoBehaviour assets in {fileName}...");
+            var monoBehaviourAssets = afile.GetAssetsOfType((int)AssetClassID.MonoBehaviour);
+            Logger.Log(LogLevel.Debug, $"Found {monoBehaviourAssets.Count} MonoBehaviour assets in {fileName}");
+            
+            var totalAssets = audioAssets.Count + monoBehaviourAssets.Count;
+            if (totalAssets == 0) 
             {
-                Logger.Log(LogLevel.Debug, $"No audio assets found in {fileName}, skipping file");
+                Logger.Log(LogLevel.Debug, $"No supported assets found in {fileName}, skipping file");
                 return 0;
             }
 
@@ -290,13 +296,31 @@ public static class AssetPatcher
                     Logger.Log(LogLevel.Debug, $"  - Asset ID {assetInfo.PathId}: (failed to read name - {ex.Message})");
                 }
             }
+            
+            // Log MonoBehaviour asset names for debugging
+            Logger.Log(LogLevel.Debug, $"MonoBehaviour assets in {fileName}:");
+            foreach (var assetInfo in monoBehaviourAssets)
+            {
+                try
+                {
+                    var baseField = manager.GetBaseField(fileInst, assetInfo);
+                    var assetName = baseField["m_Name"]?.AsString ?? "(unnamed)";
+                    Logger.Log(LogLevel.Trace, $"  - Asset ID {assetInfo.PathId}: '{assetName}'");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Debug, $"  - Asset ID {assetInfo.PathId}: (failed to read name - {ex.Message})");
+                }
+            }
 
             // Collect all replacers for this file
             var processedAssets = 0;
             var skippedAssets = 0;
             var modsToRemove = new List<AudioMod>();
+            var monoBehaviourModsToRemove = new List<MonoBehaviourMod>();
 
             Logger.Log(LogLevel.Info, $"Processing {modsCollection.AudioMods.Count} audio mods against {audioAssets.Count} assets...");
+            Logger.Log(LogLevel.Info, $"Processing {modsCollection.MonoBehaviourMods.Count} MonoBehaviour mods against {monoBehaviourAssets.Count} assets...");
 
             foreach (var audioMod in modsCollection.AudioMods)
             {
@@ -376,7 +400,7 @@ public static class AssetPatcher
                             Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
                             Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
                         }
-                        
+                            
                         // Re-throw the exception to stop the patching process
                         throw new Exception($"Failed to process asset ID {assetInfo.PathId} for mod {assetName}", ex);
                     }
@@ -394,6 +418,112 @@ public static class AssetPatcher
             {
                 modsCollection.AudioMods.Remove(modToRemove);
                 Logger.Log(LogLevel.Debug, $"Removed successfully patched mod from collection: {modToRemove.AssetName}");
+            }
+
+            // Process MonoBehaviour mods
+            foreach (var monoBehaviourMod in modsCollection.MonoBehaviourMods)
+            {
+                var assetName = monoBehaviourMod.AssetName + monoBehaviourMod.FileExtension;
+                Logger.Log(LogLevel.Debug, $"Processing MonoBehaviour mod for asset: {assetName}");
+                
+                // Find the corresponding mod file
+                Logger.Log(LogLevel.Trace, $"Looking for mod file: {Path.GetFileNameWithoutExtension(assetName)}");
+                var modFilePath = ModsDataManager.GetModFilePath(Path.GetFileNameWithoutExtension(assetName));
+                
+                if (string.IsNullOrEmpty(modFilePath))
+                {
+                    Logger.Log(LogLevel.Debug, $"Mod file path not found for: {assetName}");
+                    skippedAssets++;
+                    continue;
+                }
+                
+                if (!File.Exists(modFilePath))
+                {
+                    Logger.Log(LogLevel.Warning, $"Mod file does not exist: {modFilePath}");
+                    skippedAssets++;
+                    continue;
+                }
+                
+                Logger.Log(LogLevel.Debug, $"Loading mod file data from: {modFilePath}");
+                var fileInfo = new FileInfo(modFilePath);
+                Logger.Log(LogLevel.Debug, $"Mod file size: {fileInfo.Length} bytes");
+                var assetData = File.ReadAllBytes(modFilePath);
+                
+                // Find the matching asset in the assets file
+                bool assetFound = false;
+                var targetAssetName = Path.GetFileNameWithoutExtension(assetName);
+                Logger.Log(LogLevel.Debug, $"Searching for matching MonoBehaviour asset with name: '{targetAssetName}'");
+                
+                foreach (var assetInfo in monoBehaviourAssets)
+                {
+                    try
+                    {
+                        var baseField = manager.GetBaseField(fileInst, assetInfo);
+                        var nameField = baseField["m_Name"];
+                        var name = nameField?.AsString ?? "";
+                        
+                        // If no name field or empty name, try to use the filename
+                        if (string.IsNullOrEmpty(name))
+                        {
+                            name = targetAssetName; // Consider it a match if the MonoBehaviour has no name
+                        }
+                        
+                        Logger.Log(LogLevel.Trace, $"Comparing MonoBehaviour asset '{name}' with target '{targetAssetName}'");
+                        
+                        if (name == targetAssetName)
+                        {
+                            Logger.Log(LogLevel.Debug, $"Found matching MonoBehaviour asset! Path ID: {assetInfo.PathId}, Name: '{name}'");
+                            
+                            // Create replacer for this asset - this may throw an exception
+                            Logger.Log(LogLevel.Debug, $"Creating replacer for MonoBehaviour asset: {assetName}");
+                            var replacer = MonoBehaviourAssetHandler.CreateReplacer(manager, fileInst, assetInfo, assetName, assetData);
+                            
+                            if (replacer is AssetsReplacerWrapper wrapper)
+                            {
+                                // Set the replacer directly on the asset info
+                                assetInfo.Replacer = wrapper.GetAssetsReplacer();
+                                processedAssets++;
+                                assetFound = true;
+                                monoBehaviourModsToRemove.Add(monoBehaviourMod); // Mark for removal
+                                Logger.Log(LogLevel.Success, $"Successfully prepared replacer for MonoBehaviour: {assetName} (Path ID: {assetInfo.PathId})");
+                                break; // Found the asset, move to next mod
+                            }
+                            else
+                            {
+                                Logger.Log(LogLevel.Warning, $"Failed to create replacer for MonoBehaviour: {assetName}");
+                                skippedAssets++;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(LogLevel.Error, $"Critical error processing MonoBehaviour asset ID {assetInfo.PathId} for mod {assetName}: {ex.Message}");
+                        Logger.Log(LogLevel.Error, $"Exception type: {ex.GetType().FullName}");
+                        Logger.Log(LogLevel.Error, $"Stack trace: {ex.StackTrace}");
+                        if (ex.InnerException != null)
+                        {
+                            Logger.Log(LogLevel.Error, $"Inner exception: {ex.InnerException.Message}");
+                            Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
+                            Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
+                        }
+                        
+                        // Re-throw the exception to stop the patching process
+                        throw new Exception($"Failed to process MonoBehaviour asset ID {assetInfo.PathId} for mod {assetName}", ex);
+                    }
+                }
+                
+                if (!assetFound)
+                {
+                    Logger.Log(LogLevel.Debug, $"No matching MonoBehaviour asset found for mod: {assetName}");
+                    skippedAssets++;
+                }
+            }
+
+            // Remove successfully patched MonoBehaviour mods from the collection
+            foreach (var modToRemove in monoBehaviourModsToRemove)
+            {
+                modsCollection.MonoBehaviourMods.Remove(modToRemove);
+                Logger.Log(LogLevel.Debug, $"Removed successfully patched MonoBehaviour mod from collection: {modToRemove.AssetName}");
             }
 
             Logger.Log(LogLevel.Info, $"Asset processing summary for {fileName}: {processedAssets} processed, {skippedAssets} skipped");

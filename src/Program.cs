@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Security.Principal;
+using AssetsTools.NET;
+using AssetsTools.NET.Extra;
 using WMO.AssetPatcher;
 using WMO.Helper;
 using WMO.Logging;
@@ -85,11 +87,18 @@ internal static class Program
                     Console.WriteLine($"      • {mod.AssetName}");
                 }
             }
+            if (modsCollection.MonoBehaviourMods.Count > 0)
+            {
+                Console.WriteLine("   MonoBehaviour mods:");
+                foreach (var mod in modsCollection.MonoBehaviourMods)
+                {
+                    Console.WriteLine($"      • {mod.AssetName} ({mod.FileExtension})");
+                }
+            }
             Console.WriteLine();
 
             // Get game path - different behavior for debug vs release
-            string gamePath;
-            
+            string gamePath;   
 #if DEBUG
             // In debug mode, always use default path and skip user input
             Console.WriteLine("DEBUG MODE: Using default game path and skipping user input.");
@@ -224,37 +233,6 @@ internal static class Program
             }
 #endif
         }
-    }
-
-    /// <summary>
-    /// Gets the game path from user input, offering the default path first
-    /// </summary>
-    /// <returns>The selected game path, or empty string if cancelled</returns>
-    private static string GetGamePath()
-    {
-        Console.WriteLine("Game Path Configuration");
-        Console.WriteLine("======================");
-        Console.WriteLine();
-        Console.WriteLine($"Default path: {SettingsHolder.DEFAULT_GAME_PATH}");
-        Console.WriteLine();
-        Console.Write("Use the default path? (Y/N): ");
-        
-        var useDefault = char.ToUpper(Console.ReadKey().KeyChar) == 'Y';
-        Console.WriteLine();
-        Console.WriteLine();
-
-        if (useDefault)
-        {
-            Console.WriteLine("Using default game path.");
-            return SettingsHolder.DEFAULT_GAME_PATH;
-        }
-
-        Console.WriteLine("Please enter the path to your game's data directory:");
-        Console.WriteLine("(This should end with 'Whisper Mountain Outbreak_Data')");
-        Console.Write("Path: ");
-        
-        var customPath = Console.ReadLine()?.Trim();
-        return customPath ?? string.Empty;
     }
 
     /// <summary>

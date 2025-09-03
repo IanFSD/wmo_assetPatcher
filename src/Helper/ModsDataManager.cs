@@ -40,7 +40,8 @@ public static class ModsDataManager
 
             var audioExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a" };
             var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
-
+            var monoBehaviourExtensions = new[] { ".json", ".txt" };
+            
             foreach (var filePath in allFiles)
             {
                 var extension = Path.GetExtension(filePath).ToLowerInvariant();
@@ -60,7 +61,7 @@ public static class ModsDataManager
                 {
                     // Determine if this is a sprite or texture based on naming/path
                     bool isTexture = DetermineIfTexture(filePath, fileName, relativePath);
-                    
+
                     if (isTexture)
                     {
                         var textureMod = ProcessTextureFile(filePath, fileName, relativePath);
@@ -80,13 +81,22 @@ public static class ModsDataManager
                         }
                     }
                 }
+                else if (monoBehaviourExtensions.Contains(extension))
+                {
+                    var monoBehaviourMod = ProcessMonoBehaviourFile(filePath, fileName, relativePath);
+                    if (monoBehaviourMod != null)
+                    {
+                        collection.MonoBehaviourMods.Add(monoBehaviourMod);
+                        Logger.Log(LogLevel.Debug, $"Added MonoBehaviour mod: {monoBehaviourMod.AssetName} -> {monoBehaviourMod.FilePath}");
+                    }
+                }
                 else
                 {
                     Logger.Log(LogLevel.Debug, $"Skipped unsupported file: {relativePath}");
                 }
             }
 
-            Logger.Log(LogLevel.Info, $"Mods collection prepared: {collection.AudioMods.Count} audio, {collection.SpriteMods.Count} sprites, {collection.TextureMods.Count} textures");
+            Logger.Log(LogLevel.Info, $"Mods collection prepared: {collection.AudioMods.Count} audio, {collection.SpriteMods.Count} sprites, {collection.TextureMods.Count} textures, {collection.MonoBehaviourMods.Count} MonoBehaviours");
             
             if (collection.AudioMods.Count > 0)
             {
@@ -101,6 +111,11 @@ public static class ModsDataManager
             if (collection.TextureMods.Count > 0)
             {
                 Logger.Log(LogLevel.Info, $"Texture mods: {string.Join(", ", collection.TextureMods.Select(m => m.AssetName))}");
+            }
+            
+            if (collection.MonoBehaviourMods.Count > 0)
+            {
+                Logger.Log(LogLevel.Info, $"MonoBehaviour mods: {string.Join(", ", collection.MonoBehaviourMods.Select(m => m.AssetName))}");
             }
 
             return collection;
@@ -266,6 +281,38 @@ public static class ModsDataManager
     }
 
     /// <summary>
+    /// Processes a MonoBehaviour file and creates a MonoBehaviourMod
+    /// </summary>
+    private static MonoBehaviourMod? ProcessMonoBehaviourFile(string filePath, string fileName, string relativePath)
+    {
+        try
+        {
+            // Process the filename to extract the asset name
+            var assetName = ProcessModFileName(fileName);
+            if (string.IsNullOrEmpty(assetName))
+            {
+                Logger.Log(LogLevel.Warning, $"Could not determine asset name from file: {fileName}");
+                return null;
+            }
+
+            Logger.Log(LogLevel.Debug, $"Processed '{fileName}' -> MonoBehaviour asset name: '{assetName}'");
+            
+            return new MonoBehaviourMod
+            {
+                AssetName = assetName,
+                FilePath = filePath,
+                RelativePath = relativePath,
+                OriginalFileName = fileName
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, $"Failed to process MonoBehaviour file {relativePath}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Gets the file path for a mod by its asset name, preferring OGG format for audio
     /// </summary>
     /// <param name="assetName">The name of the asset to replace</param>
@@ -280,7 +327,8 @@ public static class ModsDataManager
             // Prioritize formats: OGG first for audio (best compatibility), then others
             var audioExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a" };
             var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
-            var allExtensions = audioExtensions.Concat(imageExtensions).ToArray();
+            var monoBehaviourExtensions = new[] { ".json", ".bytes" };
+            var allExtensions = audioExtensions.Concat(imageExtensions).Concat(monoBehaviourExtensions).ToArray();
 
             // Look for files that start with "RE" + assetName with any supported extension
             // Check in priority order (OGG first for audio)
@@ -453,8 +501,9 @@ public class ModsCollection
     public List<AudioMod> AudioMods { get; set; } = new();
     public List<SpriteMod> SpriteMods { get; set; } = new();
     public List<TextureMod> TextureMods { get; set; } = new();
+    public List<MonoBehaviourMod> MonoBehaviourMods { get; set; } = new();
     
-    public int TotalCount => AudioMods.Count + SpriteMods.Count + TextureMods.Count;
+    public int TotalCount => AudioMods.Count + SpriteMods.Count + TextureMods.Count + MonoBehaviourMods.Count;
 }
 
 /// <summary>
@@ -492,4 +541,12 @@ public class SpriteMod : ModBase
 public class TextureMod : ModBase
 {
     public override string ToString() => $"Texture: {AssetName} ({Path.GetFileName(FilePath)})";
+}
+
+/// <summary>
+/// Represents a MonoBehaviour mod file
+/// </summary>
+public class MonoBehaviourMod : ModBase
+{
+    public override string ToString() => $"MonoBehaviour: {AssetName} ({Path.GetFileName(FilePath)}, {FileExtension})";
 }
