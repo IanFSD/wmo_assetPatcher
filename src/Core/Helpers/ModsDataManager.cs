@@ -40,6 +40,9 @@ public static class ModsDataManager
 
             var audioExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a" };
             var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
+            var monoBehaviourExtensions = new[] { ".json", ".txt" };
+
+            Logger.Log(LogLevel.Debug, $"Processing {allFiles.Length} files in mod '{modName}'");
 
             foreach (var filePath in allFiles)
             {
