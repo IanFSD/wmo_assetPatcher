@@ -1,13 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-       <ApplicationIcon>src/Resources\RER_Icon.ico</ApplicationIcon>
-    <TargetFramework>net9.0</TargetFramework>
-     <LangVersion>latestmajor</LangVersion>
+    <OutputType>WinExe</OutputType>
+    <ApplicationIcon>src/Resources\RER_Icon.ico</ApplicationIcon>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <LangVersion>latestmajor</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>bf391776-b0ea-4ce2-9329-96fe36f7fb8b</UserSecretsId>
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <!-- Debug Configuration -->

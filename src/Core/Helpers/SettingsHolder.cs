@@ -3,7 +3,7 @@ using WMO.Core.Logging;
 namespace WMO.Core.Helpers;
 
 public static class SettingsHolder {
-	public const string DEFAULT_GAME_PATH = @"C:\Program Files (x86)\Steam\steamapps\common\Whisper Mountain Outbreak\Whisper Mountain Outbreak_Data";
+	public const string DEFAULT_GAME_PATH = @"C:\Program Files (x86)\Steam\steamapps\common\Whisper Mountain Outbreak";
 	
 	private static string? _installPath = null; // Will be set by SettingsSaver or user input
 	private static bool _allowStartupWithConflicts;

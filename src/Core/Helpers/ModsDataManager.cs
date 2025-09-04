@@ -42,7 +42,7 @@ public static class ModsDataManager
             var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
             var monoBehaviourExtensions = new[] { ".json", ".txt" };
 
-            Logger.Log(LogLevel.Debug, $"Processing {allFiles.Length} files in mod '{modName}'");
+            Logger.Log(LogLevel.Debug, $"Processing {allFiles.Length} files in mods directory");
 
             foreach (var filePath in allFiles)
             {

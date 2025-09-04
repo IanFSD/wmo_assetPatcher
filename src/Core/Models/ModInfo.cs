@@ -48,9 +48,9 @@ public class ModInfo : INotifyPropertyChanged
     /// </summary>
     public string TypeDisplay => Type switch
     {
-        ModType.Audio => "🎵 Audio",
-        ModType.Sprite => "🖼️ Sprite", 
-        ModType.Texture => "🎨 Texture",
+        ModType.Audio => "Audio",
+        ModType.Sprite => "Sprite", 
+        ModType.Texture => "Texture",
         _ => "❓ Unknown"
     };
     

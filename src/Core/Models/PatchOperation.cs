@@ -32,9 +32,9 @@ public class PatchOperation
     {
         PatchStatus.Pending => "Waiting to start...",
         PatchStatus.InProgress => $"Processing {FileName}... ({ProcessedMods}/{TotalMods})",
-        PatchStatus.Completed => $"✅ Completed ({ProcessedMods} mods applied, {SkippedMods} skipped)",
-        PatchStatus.Failed => $"❌ Failed: {ErrorMessage}",
-        PatchStatus.Cancelled => "⏹️ Cancelled",
+        PatchStatus.Completed => $"Completed ({ProcessedMods} mods applied, {SkippedMods} skipped)",
+        PatchStatus.Failed => $"Failed: {ErrorMessage}",
+        PatchStatus.Cancelled => "Cancelled",
         _ => "Unknown status"
     };
 }
