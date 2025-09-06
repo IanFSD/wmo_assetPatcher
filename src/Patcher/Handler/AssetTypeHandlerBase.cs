@@ -1,6 +1,4 @@
-using AssetsTools.NET;
 using AssetsTools.NET.Extra;
-using FileInstance = AssetsTools.NET.Extra.AssetsFileInstance;
 namespace WMO.AssetPatcher;
 
 public abstract class AssetTypeHandlerBase(AssetClassID classId, params string[] extensions)

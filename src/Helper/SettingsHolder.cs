@@ -3,7 +3,9 @@ using WMO.Logging;
 namespace WMO.Helper;
 
 public static class SettingsHolder {
-	private static string? _installPath;
+	public const string DEFAULT_GAME_PATH = @"C:\Program Files (x86)\Steam\steamapps\common\Whisper Mountain Outbreak\Whisper Mountain Outbreak_Data";
+	
+	private static string? _installPath = null; // Will be set by SettingsSaver or user input
 	private static bool _allowStartupWithConflicts;
 	private static bool _isPatched = true;
 	private static LogLevel _logLevel = LogLevel.Info;
@@ -20,9 +22,7 @@ public static class SettingsHolder {
 		get => _installPath;
 		set { 	
 			var isValid = value != null && File.Exists(Path.Combine(value, "Whisper Mountain Outbreak.exe"));
-        
 			if (_installPath == value) return;
-        
 			_installPath = isValid ? value : null;
 			InstallPathChanged?.Invoke();
 			Logger.Log(LogLevel.Debug, $"Setting {nameof(InstallPath)} changed to: {value}");
