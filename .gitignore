@@ -26,7 +26,3 @@ obj/
 *.user
 *.userosscache
 *.sln.docstates
-.github/
-
-# Workspace
-wmo_assetPatcher.code-workspace
