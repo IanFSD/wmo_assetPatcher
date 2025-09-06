@@ -53,16 +53,12 @@ public static class GamePathService
             }
 
             // Check for the game executable in the parent directory
-            var gameDirectory = Directory.GetParent(expectedPath)?.FullName;
-            if (!string.IsNullOrEmpty(gameDirectory))
-            {
-                var exePath = Path.Combine(gameDirectory, "Whisper Mountain Outbreak.exe");
+                var exePath = Path.Combine(gamePath, "Whisper Mountain Outbreak.exe");
                 if (!File.Exists(exePath))
                 {
                     Logger.Log(LogLevel.Warning, $"Game executable not found at: {exePath}");
                     return false;
                 }
-            }
 
             Logger.Log(LogLevel.Info, $"Game directory validation successful");
             return true;

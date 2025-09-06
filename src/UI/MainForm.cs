@@ -3,7 +3,7 @@ using WMO.Core.Services;
 using WMO.Core.Helpers;
 using WMO.Core.Patching;
 using WMO.UI.Forms;
-using WMO.UI.Models;
+using WMO.Core.Models;
 
 namespace WMO.UI;
 
@@ -12,7 +12,7 @@ namespace WMO.UI;
 /// </summary>
 public partial class MainForm : Form
 {
-    private List<ModItem> _availableMods = new();
+    private readonly FolderModService _folderModService = new();
     private bool _isPatchingInProgress = false;
 
     public MainForm()
@@ -90,34 +90,15 @@ public partial class MainForm : Form
         chkDarkMode.Checked = settings.DarkMode;
     }
 
-    private void LoadMods()
+    private async void LoadMods()
     {
         try
         {
-            Logger.Log(LogLevel.Info, $"Loading available mods...");
+            Logger.Log(LogLevel.Info, $"Loading available folder mods...");
             
-            var modsCollection = ModsDataManager.GetModsCollection();
-            _availableMods.Clear();
+            await _folderModService.RefreshModsAsync();
             
-            // Add audio mods
-            foreach (var audioMod in modsCollection.AudioMods)
-            {
-                _availableMods.Add(new ModItem(audioMod));
-            }
-            
-            // Add sprite mods
-            foreach (var spriteMod in modsCollection.SpriteMods)
-            {
-                _availableMods.Add(new ModItem(spriteMod));
-            }
-            
-            // Add texture mods
-            foreach (var textureMod in modsCollection.TextureMods)
-            {
-                _availableMods.Add(new ModItem(textureMod));
-            }
-            
-            Logger.Log(LogLevel.Info, $"Loaded {_availableMods.Count} mods total");
+            Logger.Log(LogLevel.Info, $"Loaded {_folderModService.AvailableMods.Count} mods total");
             
             // Update the mods list in UI
             UpdateModsList();
@@ -134,21 +115,21 @@ public partial class MainForm : Form
     {
         lstMods.Items.Clear();
         
-        foreach (var mod in _availableMods)
+        foreach (var folderMod in _folderModService.AvailableMods)
         {
-            var item = new ListViewItem(mod.Name)
+            var item = new ListViewItem(folderMod.Name)
             {
-                Tag = mod,
-                Checked = mod.IsSelected
+                Tag = folderMod,
+                Checked = folderMod.IsEnabled
             };
             
-            item.SubItems.Add(mod.Type.ToString());
-            item.SubItems.Add(Path.GetFileName(mod.FilePath));
+            item.SubItems.Add(folderMod.TypesSummary);
+            item.SubItems.Add($"{folderMod.FileCount} files ({folderMod.FormattedTotalSize})");
             
             lstMods.Items.Add(item);
         }
         
-        lblModCount.Text = $"Mods found: {_availableMods.Count}";
+        lblModCount.Text = $"Mods found: {_folderModService.AvailableMods.Count}";
     }
 
     private void UpdateGamePathStatus()
@@ -158,21 +139,21 @@ public partial class MainForm : Form
         
         if (string.IsNullOrEmpty(gamePath))
         {
-            lblGamePathStatus.Text = "No game path configured";
+            lblGamePathStatus.Text = "⚠ No game path configured";
             lblGamePathStatus.ForeColor = Color.Orange;
             btnPatchGame.Enabled = false;
             btnLaunchGame.Enabled = false;
         }
         else if (GamePathService.ValidateGamePath(gamePath))
         {
-            lblGamePathStatus.Text = $"Game path: {gamePath}";
+            lblGamePathStatus.Text = $"✓ Game path: {gamePath}";
             lblGamePathStatus.ForeColor = Color.Green;
-            btnPatchGame.Enabled = !_isPatchingInProgress && _availableMods.Any(m => m.IsSelected);
+            btnPatchGame.Enabled = !_isPatchingInProgress && _folderModService.AvailableMods.Any(m => m.IsEnabled);
             btnLaunchGame.Enabled = !_isPatchingInProgress;
         }
         else
         {
-            lblGamePathStatus.Text = "Invalid game path";
+            lblGamePathStatus.Text = "✗ Invalid game path";
             lblGamePathStatus.ForeColor = Color.Red;
             btnPatchGame.Enabled = false;
             btnLaunchGame.Enabled = false;
@@ -186,7 +167,7 @@ public partial class MainForm : Form
         try
         {
             // Get selected mods
-            var selectedMods = _availableMods.Where(m => m.IsSelected).ToList();
+            var selectedMods = _folderModService.AvailableMods.Where(m => m.IsEnabled).ToList();
             if (!selectedMods.Any())
             {
                 MessageBox.Show("No mods selected for patching.", "No Mods Selected", 
@@ -199,8 +180,9 @@ public partial class MainForm : Form
             // Show confirmation if enabled
             if (settings.ConfirmBeforePatching)
             {
+                var totalFiles = selectedMods.Sum(m => m.FileCount);
                 var result = MessageBox.Show(
-                    $"This will patch the game with {selectedMods.Count} selected mod(s). " +
+                    $"This will patch the game with {selectedMods.Count} selected mod(s) containing {totalFiles} files. " +
                     "The operation will create backups of original files before making changes.\n\n" +
                     "Do you want to continue?",
                     "Confirm Patching",
@@ -213,6 +195,12 @@ public partial class MainForm : Form
 
             _isPatchingInProgress = true;
             UpdateGamePathStatus();
+            
+            // Update status for selected mods
+            foreach (var mod in selectedMods)
+            {
+                mod.Status = "Preparing...";
+            }
             
             // Show console output form
             var consoleForm = new ConsoleOutputForm(settings.LogLevel, "Patching Game - Progress");
@@ -232,6 +220,12 @@ public partial class MainForm : Form
                     success = false;
                 }
             });
+            
+            // Update status for all mods (don't remove them from list!)
+            foreach (var mod in selectedMods)
+            {
+                mod.Status = success ? "Patched" : "Failed";
+            }
             
             // Update console form to show completion
             consoleForm.SetOperationComplete(success);
@@ -289,9 +283,9 @@ public partial class MainForm : Form
 
     private void lstMods_ItemChecked(object sender, ItemCheckedEventArgs e)
     {
-        if (e.Item?.Tag is ModItem mod)
+        if (e.Item?.Tag is FolderMod folderMod)
         {
-            mod.IsSelected = e.Item.Checked;
+            folderMod.IsEnabled = e.Item.Checked;
         }
         
         // Update patch button state

@@ -40,8 +40,8 @@ public class ModService
             
             var files = Directory.GetFiles(_modsDirectory, "*.*", SearchOption.AllDirectories);
             var audioExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a" };
-            var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
-            
+            var imageExtensions = new[] { ".png", ".jpg", ".jpeg" };
+
             foreach (var filePath in files)
             {
                 var extension = Path.GetExtension(filePath).ToLowerInvariant();

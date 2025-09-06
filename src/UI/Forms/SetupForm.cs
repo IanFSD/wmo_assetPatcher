@@ -61,7 +61,7 @@ public partial class SetupForm : Form
     {
         using var dialog = new FolderBrowserDialog
         {
-            Description = "Select the Whisper Mountain Outbreak data directory\\n(should end with 'Whisper Mountain Outbreak')",
+            Description = "Select the Whisper Mountain Outbreak root directory\\n",
             ShowNewFolderButton = false,
             SelectedPath = txtGamePath.Text
         };

@@ -172,8 +172,8 @@ namespace WMO.UI
             
             // Set up columns
             this.lstMods.Columns.Add("Mod Name", 300);
-            this.lstMods.Columns.Add("Type", 100);
-            this.lstMods.Columns.Add("File", 200);
+            this.lstMods.Columns.Add("Types", 150);
+            this.lstMods.Columns.Add("Files", 200);
             
             // 
             // lblModCount
@@ -211,14 +211,12 @@ namespace WMO.UI
             // btnPatchGame
             // 
             this.btnPatchGame.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            this.btnPatchGame.BackColor = Color.FromArgb(0, 120, 215);
-            this.btnPatchGame.ForeColor = Color.White;
             this.btnPatchGame.Location = new Point(636, 450);
             this.btnPatchGame.Name = "btnPatchGame";
             this.btnPatchGame.Size = new Size(100, 35);
             this.btnPatchGame.TabIndex = 4;
             this.btnPatchGame.Text = "Patch Game";
-            this.btnPatchGame.UseVisualStyleBackColor = false;
+            this.btnLaunchGame.UseVisualStyleBackColor = true;
             this.btnPatchGame.Click += this.btnPatchGame_Click;
             
             // 
@@ -417,6 +415,14 @@ namespace WMO.UI
             this.Controls.Add(this.statusStrip);
             this.Controls.Add(this.tabControl);
             this.Controls.Add(this.menuStrip);
+            try
+            {
+                this.Icon = new Icon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "RER_Icon.ico"));
+            }
+            catch
+            {
+                // If icon loading fails, continue without it
+            }
             this.MainMenuStrip = this.menuStrip;
             this.Name = "MainForm";
             this.Text = "WMO Asset Patcher";

@@ -13,10 +13,7 @@ public static class SettingsHolder {
 	public static event Action? InstallPathChanged,
 		StartupWithConflictsChanged,
 		PatchStatusChanged,
-		ModStateChanged,
-		CheckForUpdatesOnStartupChanged,
-		WindowSizeChanged,
-		LogLevelChanged;
+        LogLevelChanged;
 
 	public static string? InstallPath {
 		get => _installPath;
