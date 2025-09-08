@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using WMO.Core.Models.Enums;
 
 namespace WMO.Core.Models;
 
@@ -81,14 +82,4 @@ public class ModInfo : INotifyPropertyChanged
         }
         return $"{len:0.##} {sizes[order]}";
     }
-}
-
-/// <summary>
-/// Mod file types supported by the patcher
-/// </summary>
-public enum ModType
-{
-    Audio,
-    Sprite, 
-    Texture
 }

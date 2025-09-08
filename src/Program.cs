@@ -22,10 +22,11 @@ internal static class Program
         bool consoleMode = args.Contains("--console");
         bool debugMode = args.Contains("--debug");
         
-
-        
         try
         {
+            // Configure console output based on mode
+            SettingsService.Current.ConsoleOutput = consoleMode;
+            
             // Configure logging level based on build configuration or debug flag BEFORE any logging
 #if DEBUG
             SettingsService.Current.LogLevel = LogLevel.Debug; // Show debug logs in debug mode
@@ -51,22 +52,22 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Logger.Log(LogLevel.Error, $"Unhandled exception in main: {ex}");
+            Logger.Log(LogLevel.Fatal, $"Unhandled exception in main: {ex}");
             
             if (consoleMode)
             {
-                Console.WriteLine();
-                Console.WriteLine($" Fatal error: {ex.Message}");
+                Logger.WriteConsole("");
+                Logger.WriteConsole($" Fatal error: {ex.Message}");
 #if DEBUG
-                Console.WriteLine("DEBUG MODE: Exiting automatically...");
+                Logger.WriteConsole("DEBUG MODE: Exiting automatically...");
 #else
                 if (debugMode)
                 {
-                    Console.WriteLine("DEBUG MODE: Exiting automatically...");
+                    Logger.WriteConsole("DEBUG MODE: Exiting automatically...");
                 }
                 else
                 {
-                    Console.WriteLine("Press any key to exit...");
+                    Logger.WriteConsole("Press any key to exit...");
                     Console.ReadKey();
                 }
 #endif
@@ -109,78 +110,83 @@ internal static class Program
     private static void RunConsoleMode(bool debugMode)
     {
         // Original console mode logic
-        Console.WriteLine("Whisper Mountain Outbreak Asset Patcher");
-        Console.WriteLine("=======================================");
-        Console.WriteLine();
+        Logger.WriteConsole("Whisper Mountain Outbreak Asset Patcher");
+        Logger.WriteConsole("=======================================");
+        Logger.WriteConsole("");
 
         // Prepare mods data first
-        Console.WriteLine("Preparing mod files...");
+        Logger.WriteConsole("Preparing mod files...");
+        Logger.LogInfo("Preparing mod files for console mode");
         var modsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mods");
-        Console.WriteLine($"Looking for mods in: {modsPath}");
-        Console.WriteLine();
+        Logger.WriteConsole($"Looking for mods in: {modsPath}");
+        Logger.WriteConsole("");
 
         var modsCollection = ModsDataManager.GetModsCollection();
         if (modsCollection.TotalCount == 0)
         {
-            Console.WriteLine(" No mod files found!");
-            Console.WriteLine($"Please place your mod files in the mods folder:");
-            Console.WriteLine($"{modsPath}");
-            Console.WriteLine();
-            Console.WriteLine("File naming: Your files should be named with the name of the asset you want to modify");
-            Console.WriteLine("Example: bgm-lobby.ogg will replace 'bgm-lobby' in the game");
-            Console.WriteLine();
+            Logger.WriteConsole(" No mod files found!");
+            Logger.LogWarning("No mod files found in mods directory");
+            Logger.WriteConsole($"Please place your mod files in the mods folder:");
+            Logger.WriteConsole($"{modsPath}");
+            Logger.WriteConsole("");
+            Logger.WriteConsole("File naming: Your files should be named with the name of the asset you want to modify");
+            Logger.WriteConsole("Example: bgm-lobby.ogg will replace 'bgm-lobby' in the game");
+            Logger.WriteConsole("");
 #if DEBUG
-            Console.WriteLine("DEBUG MODE: Exiting automatically...");
+            Logger.WriteConsole("DEBUG MODE: Exiting automatically...");
 #else
             if (debugMode)
             {
-                Console.WriteLine("DEBUG MODE: Exiting automatically...");
+                Logger.WriteConsole("DEBUG MODE: Exiting automatically...");
             }
             else
             {
-                Console.WriteLine("Press any key to exit...");
+                Logger.WriteConsole("Press any key to exit...");
                 Console.ReadKey();
             }
 #endif
             return;
         }
 
-        Console.WriteLine($" Found {modsCollection.TotalCount} mod files:");
+        Logger.WriteConsole($" Found {modsCollection.TotalCount} mod files:");
+        Logger.LogInfo($"Found {modsCollection.TotalCount} mod files: {modsCollection.AudioMods.Count} audio, {modsCollection.SpriteMods.Count} sprites");
         if (modsCollection.AudioMods.Count > 0)
         {
-            Console.WriteLine("   Audio mods:");
+            Logger.WriteConsole("   Audio mods:");
             foreach (var mod in modsCollection.AudioMods)
             {
-                Console.WriteLine($"      • {mod.AssetName}");
+                Logger.WriteConsole($"      • {mod.AssetName}");
             }
         }
         if (modsCollection.SpriteMods.Count > 0)
         {
-            Console.WriteLine("   Sprite mods:");
+            Logger.WriteConsole("   Sprite mods:");
             foreach (var mod in modsCollection.SpriteMods)
             {
-                Console.WriteLine($"      • {mod.AssetName}");
+                Logger.WriteConsole($"      • {mod.AssetName}");
             }
         }
-        Console.WriteLine();
+        Logger.WriteConsole("");
 
         // Get game path - different behavior for debug vs release
         string gamePath;
         
 #if DEBUG
         // In debug mode, always use default path and skip user input
-        Console.WriteLine("DEBUG MODE: Using default game path and skipping user input.");
+        Logger.WriteConsole("DEBUG MODE: Using default game path and skipping user input.");
+        Logger.LogDebug("Using default game path in debug mode");
         gamePath = SettingsService.DEFAULT_GAME_PATH;
-        Console.WriteLine($"Using game path: {gamePath}");
-        Console.WriteLine();
+        Logger.WriteConsole($"Using game path: {gamePath}");
+        Logger.WriteConsole("");
 #else
         if (debugMode)
         {
             // Release mode with --debug flag: behave like debug mode
-            Console.WriteLine("DEBUG MODE: Using default game path and skipping user input.");
+            Logger.WriteConsole("DEBUG MODE: Using default game path and skipping user input.");
+            Logger.LogDebug("Using default game path in debug mode");
             gamePath = SettingsService.DEFAULT_GAME_PATH;
-            Console.WriteLine($"Using game path: {gamePath}");
-            Console.WriteLine();
+            Logger.WriteConsole($"Using game path: {gamePath}");
+            Logger.WriteConsole("");
         }
         else
         {
@@ -188,60 +194,66 @@ internal static class Program
             gamePath = GetGamePath();
             if (string.IsNullOrEmpty(gamePath))
             {
-                Console.WriteLine(" No valid game path provided. Exiting...");
-                Console.WriteLine("Press any key to exit...");
+                Logger.WriteConsole(" No valid game path provided. Exiting...");
+                Logger.LogError("No valid game path provided by user");
+                Logger.WriteConsole("Press any key to exit...");
                 Console.ReadKey();
                 return;
             }
 
-            Console.WriteLine($"Using game path: {gamePath}");
-            Console.WriteLine();
+            Logger.WriteConsole($"Using game path: {gamePath}");
+            Logger.LogInfo($"Using game path: {gamePath}");
+            Logger.WriteConsole("");
         }
 #endif
 
         // Verify the path exists and contains the game
         if (!VerifyGamePath(gamePath))
         {
-            Console.WriteLine(" The specified path doesn't appear to contain Whisper Mountain Outbreak.");
+            Logger.WriteConsole(" The specified path doesn't appear to contain Whisper Mountain Outbreak.");
+            Logger.LogError($"Game path verification failed for: {gamePath}");
 #if !DEBUG
             if (!debugMode)
             {
-                Console.WriteLine("Press any key to exit...");
+                Logger.WriteConsole("Press any key to exit...");
                 Console.ReadKey();
             }
 #endif
             return;
         }
         // Generate asset list for user reference
-        Console.WriteLine();
+        Logger.WriteConsole("");
 
 #if DEBUG
         // In debug mode, skip confirmation and start patching directly
-        Console.WriteLine("DEBUG MODE: Starting patching process automatically...");
-        Console.WriteLine();
+        Logger.WriteConsole("DEBUG MODE: Starting patching process automatically...");
+        Logger.LogDebug("Starting patching process automatically in debug mode");
+        Logger.WriteConsole("");
 #else      
         if (debugMode)
         {
             // Release mode with --debug flag: behave like debug mode
-            Console.WriteLine("DEBUG MODE: Starting patching process automatically...");
-            Console.WriteLine();
+            Logger.WriteConsole("DEBUG MODE: Starting patching process automatically...");
+            Logger.LogDebug("Starting patching process automatically in debug mode");
+            Logger.WriteConsole("");
         }
         else
         {
             // Normal release mode: ask for confirmation
-            Console.WriteLine("Ready to start patching. This will modify game files.");
-            Console.Write("Continue? (Y/N): ");
+            Logger.WriteConsole("Ready to start patching. This will modify game files.");
+            Logger.WriteConsole("Continue? (Y/N): ", false);
             
             var response = Console.ReadKey().KeyChar;
-            Console.WriteLine();
-            Console.WriteLine();
+            Logger.WriteConsole("");
+            Logger.WriteConsole("");
             
             if (char.ToUpper(response) != 'Y')
             {
-                Console.WriteLine("Patching cancelled.");
+                Logger.WriteConsole("Patching cancelled.");
+                Logger.LogInfo("User cancelled patching process");
                 if (!debugMode)
                 {
-                    Console.WriteLine("Press any key to exit...");
+                    Logger.WriteConsole("Press any key to exit...");
                     Console.ReadKey();
                 }
                 return;
@@ -250,34 +262,37 @@ internal static class Program
 #endif
 
         // Start patching process
-        Console.WriteLine("Starting patching process...");
-        Console.WriteLine();
+        Logger.WriteConsole("Starting patching process...");
+        Logger.LogInfo("Starting patching process");
+        Logger.WriteConsole("");
 
         bool success = AssetPatcher.TryPatch(gamePath);
 
         if (success)
         {
-            Console.WriteLine();
-            Console.WriteLine(" Patching completed successfully!");
-            Console.WriteLine("Your game has been modded. You can now run Whisper Mountain Outbreak.");
+            Logger.WriteConsole("");
+            Logger.WriteConsole(" Patching completed successfully!");
+            Logger.WriteConsole("Your game has been modded. You can now run Whisper Mountain Outbreak.");
+            Logger.LogSuccess("Patching completed successfully");
         }
         else
         {
-            Console.WriteLine();
-            Console.WriteLine(" Patching failed. Check the logs above for details.");
+            Logger.WriteConsole("");
+            Logger.WriteConsole(" Patching failed. Check the logs above for details.");
+            Logger.LogError("Patching failed");
         }
 
-        Console.WriteLine();
+        Logger.WriteConsole("");
 #if DEBUG
-        Console.WriteLine("DEBUG MODE: Exiting automatically...");
+        Logger.WriteConsole("DEBUG MODE: Exiting automatically...");
 #else
         if (debugMode)
         {
-            Console.WriteLine("DEBUG MODE: Exiting automatically...");
+            Logger.WriteConsole("DEBUG MODE: Exiting automatically...");
         }
         else
         {
-            Console.WriteLine("Press any key to exit...");
+            Logger.WriteConsole("Press any key to exit...");
             Console.ReadKey();
         }
 #endif
@@ -289,28 +304,30 @@ internal static class Program
     /// <returns>The selected game path, or empty string if cancelled</returns>
     private static string GetGamePath()
     {
-        Console.WriteLine("Game Path Configuration");
-        Console.WriteLine("======================");
-        Console.WriteLine();
-        Console.WriteLine($"Default path: {SettingsService.DEFAULT_GAME_PATH}");
-        Console.WriteLine();
-        Console.Write("Use the default path? (Y/N): ");
+        Logger.WriteConsole("Game Path Configuration");
+        Logger.WriteConsole("======================");
+        Logger.WriteConsole("");
+        Logger.WriteConsole($"Default path: {SettingsService.DEFAULT_GAME_PATH}");
+        Logger.WriteConsole("");
+        Logger.WriteConsole("Use the default path? (Y/N): ", false);
         
         var useDefault = char.ToUpper(Console.ReadKey().KeyChar) == 'Y';
-        Console.WriteLine();
-        Console.WriteLine();
+        Logger.WriteConsole("");
+        Logger.WriteConsole("");
 
         if (useDefault)
         {
-            Console.WriteLine("Using default game path.");
+            Logger.WriteConsole("Using default game path.");
+            Logger.LogInfo($"User selected default game path: {SettingsService.DEFAULT_GAME_PATH}");
             return SettingsService.DEFAULT_GAME_PATH;
         }
 
-        Console.WriteLine("Please enter the path to your game's root directory:");
-        Console.WriteLine("(This should end with 'Whisper Mountain Outbreak')");
-        Console.Write("Path: ");
+        Logger.WriteConsole("Please enter the path to your game's root directory:");
+        Logger.WriteConsole("(This should end with 'Whisper Mountain Outbreak')");
+        Logger.WriteConsole("Path: ", false);
         
         var customPath = Console.ReadLine()?.Trim();
+        Logger.LogInfo($"User entered custom game path: {customPath}");
         return customPath ?? string.Empty;
     }
 
@@ -325,15 +342,17 @@ internal static class Program
         {
             if (string.IsNullOrEmpty(gamePath) || !Directory.Exists(gamePath))
             {
-                Console.WriteLine("Directory does not exist.");
+                Logger.WriteConsole("Directory does not exist.");
+                Logger.LogError($"Directory does not exist: {gamePath}");
                 return false;
             }
 
             // Check if it's the expected game data directory
             if (!gamePath.EndsWith("Whisper Mountain Outbreak", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine("Warning: Path doesn't end with 'Whisper Mountain Outbreak'.");
-                Console.WriteLine("This might not be the correct directory.");
+                Logger.WriteConsole("Warning: Path doesn't end with 'Whisper Mountain Outbreak'.");
+                Logger.WriteConsole("This might not be the correct directory.");
+                Logger.LogWarning($"Game path doesn't end with expected directory name: {gamePath}");
             }
 
             // Look for common Unity game files
@@ -354,17 +373,20 @@ internal static class Program
                 var assetsFiles = Directory.GetFiles(expectedPath, "*.assets", SearchOption.AllDirectories);
                 if (assetsFiles.Length == 0)
                 {
-                    Console.WriteLine("No Unity assets files found in the directory.");
+                    Logger.WriteConsole("No Unity assets files found in the directory.");
+                    Logger.LogError($"No Unity assets files found in: {expectedPath}");
                     return false;
                 }
             }
 
-            Console.WriteLine("Game directory appears to be valid.");
+            Logger.WriteConsole("Game directory appears to be valid.");
+            Logger.LogInfo($"Game directory verified successfully: {gamePath}");
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error verifying path: {ex.Message}");
+            Logger.WriteConsole($"Error verifying path: {ex.Message}");
+            Logger.LogError($"Error verifying game path {gamePath}: {ex}");
             return false;
         }
     }

@@ -56,13 +56,13 @@ public static class AssetPatcher
                     Logger.Log(LogLevel.Error, $"  - {Path.GetFileName(lockedFile)}");
                 }
                 
-                Console.WriteLine($" Error: Some game files are currently in use by another process.");
-                Console.WriteLine($"Please close the following programs and try again:");
-                Console.WriteLine($"  - The game itself");
-                Console.WriteLine($"  - Unity Asset Bundle Extractor (UABE)");
-                Console.WriteLine($"  - Any other tools that might be accessing game files");
-                Console.WriteLine($"");
-                Console.WriteLine($"Files in use: {string.Join(", ", lockedFiles.Select(Path.GetFileName))}");
+                Logger.WriteConsole($" Error: Some game files are currently in use by another process.");
+                Logger.WriteConsole($"Please close the following programs and try again:");
+                Logger.WriteConsole($"  - The game itself");
+                Logger.WriteConsole($"  - Unity Asset Bundle Extractor (UABE)");
+                Logger.WriteConsole($"  - Any other tools that might be accessing game files");
+                Logger.WriteConsole($"");
+                Logger.WriteConsole($"Files in use: {string.Join(", ", lockedFiles.Select(Path.GetFileName))}");
                 
                 return false;
             }
@@ -84,7 +84,7 @@ public static class AssetPatcher
             }
 
             // Process each assets file
-            Console.WriteLine();
+            Logger.WriteConsole("");
             foreach (var assetsFile in assetsFiles)
             {
                 // Check if there are any mods left to patch
@@ -142,8 +142,8 @@ public static class AssetPatcher
                         Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
                     }
                     
-                    Console.WriteLine($" Critical error while processing {fileName}: {ex.Message}");
-                    Console.WriteLine($"Full error details have been logged.");
+                    Logger.WriteConsole($" Critical error while processing {fileName}: {ex.Message}");
+                    Logger.WriteConsole($"Full error details have been logged.");
                     
                     // Stop the entire process and recover backups
                     Logger.Log(LogLevel.Error, $"Stopping patching process due to critical error in {fileName}");
@@ -152,12 +152,12 @@ public static class AssetPatcher
                     if (BackupManager.RecoverBackups())
                     {
                         Logger.Log(LogLevel.Info, $"Successfully recovered all files from backups");
-                        Console.WriteLine($"All files have been restored from backups due to the error.");
+                        Logger.WriteConsole($"All files have been restored from backups due to the error.");
                     }
                     else
                     {
                         Logger.Log(LogLevel.Error, $"Failed to recover some files from backups");
-                        Console.WriteLine($"Warning: Some files may not have been restored properly. Check your game installation.");
+                        Logger.WriteConsole($"Warning: Some files may not have been restored properly. Check your game installation.");
                     }
                     
                     ErrorHandler.Handle($"Critical error processing file {fileName}", ex);
@@ -165,7 +165,7 @@ public static class AssetPatcher
                 }
             }
 
-            Console.WriteLine();
+            Logger.WriteConsole("");
             Logger.Log(LogLevel.Info, $"Patching process completed. Processed {processedFiles} files total.");
             
             if (patchedAny)
@@ -188,8 +188,8 @@ public static class AssetPatcher
                 Logger.Log(LogLevel.Debug, $"  - File name matching between mods and game assets");
                 Logger.Log(LogLevel.Debug, $"  - Asset types compatibility");
                 Logger.Log(LogLevel.Debug, $"  - File path accessibility");
-                Console.WriteLine($"No assets were patched.");
-                Console.WriteLine($"Check if your file names match the game's asset names.");
+                Logger.WriteConsole($"No assets were patched.");
+                Logger.WriteConsole($"Check if your file names match the game's asset names.");
                 
                 // Clean up backups since no files were actually modified
                 Logger.Log(LogLevel.Debug, $"Cleaning up unused backup files...");
@@ -211,20 +211,20 @@ public static class AssetPatcher
                 Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
             }
             
-            Console.WriteLine($" Critical error during patching: {ex.Message}");
-            Console.WriteLine($"Full error details have been logged.");
+            Logger.WriteConsole($" Critical error during patching: {ex.Message}");
+            Logger.WriteConsole($"Full error details have been logged.");
             
             // Attempt to recover from backups
             Logger.Log(LogLevel.Warning, $"Attempting to recover from backups due to error...");
             if (BackupManager.RecoverBackups())
             {
                 Logger.Log(LogLevel.Info, $"Successfully recovered all files from backups");
-                Console.WriteLine($"Files have been restored from backups due to the error.");
+                Logger.WriteConsole($"Files have been restored from backups due to the error.");
             }
             else
             {
                 Logger.Log(LogLevel.Error, $"Failed to recover some files from backups");
-                Console.WriteLine($"Warning: Some files may not have been restored properly. Check your game installation.");
+                Logger.WriteConsole($"Warning: Some files may not have been restored properly. Check your game installation.");
             }
             
             ErrorHandler.Handle("Error during patching", ex);

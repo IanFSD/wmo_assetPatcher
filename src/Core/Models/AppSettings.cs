@@ -19,6 +19,7 @@ public class AppSettings : INotifyPropertyChanged
     // Legacy console settings properties
     private bool _allowStartupWithConflicts = false;
     private bool _isPatched = false;
+    private bool _consoleOutput = true;
     
     /// <summary>
     /// Path to the game installation directory
@@ -28,7 +29,7 @@ public class AppSettings : INotifyPropertyChanged
         get => _gamePath;
         set => SetProperty(ref _gamePath, value);
     }
-    
+
     /// <summary>
     /// Whether to minimize to system tray
     /// </summary>
@@ -99,6 +100,15 @@ public class AppSettings : INotifyPropertyChanged
     {
         get => _isPatched;
         set => SetProperty(ref _isPatched, value);
+    }
+    
+    /// <summary>
+    /// Whether to output logs to console (for console mode)
+    /// </summary>
+    public bool ConsoleOutput
+    {
+        get => _consoleOutput;
+        set => SetProperty(ref _consoleOutput, value);
     }
     
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -1,4 +1,5 @@
 using WMO.Core.Helpers;
+using WMO.Core.Models.Enums;
 
 namespace WMO.UI.Models;
 
@@ -35,14 +36,4 @@ public class ModItem
         FilePath = textureMod.FilePath;
         Type = ModType.Texture;
     }
-}
-
-/// <summary>
-/// Type of mod
-/// </summary>
-public enum ModType
-{
-    Audio,
-    Sprite,
-    Texture
 }

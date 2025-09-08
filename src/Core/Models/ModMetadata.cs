@@ -3,19 +3,22 @@ using WMO.Core.Models.Enums;
 namespace WMO.Core.Models;
 
 /// <summary>
-/// Represents an individual mod file within a folder mod (pure business model)
+/// Pure metadata model for mod information (no UI concerns)
 /// </summary>
-public class ModFile
+public class ModMetadata
 {
-    public required string Name { get; init; }
-    public required string FilePath { get; init; }
-    public required ModType Type { get; init; }
-    public required long FileSize { get; init; }
-    public DateTime? CreatedDate { get; init; }
-    public DateTime? ModifiedDate { get; init; }
+    public string Name { get; set; } = string.Empty;
+    public string FilePath { get; set; } = string.Empty;
+    public ModType Type { get; set; }
+    public long FileSize { get; set; }
+    public string? Description { get; set; }
+    public string? Version { get; set; }
+    public string? Author { get; set; }
+    public DateTime? CreatedDate { get; set; }
+    public DateTime? ModifiedDate { get; set; }
     
     /// <summary>
-    /// Whether this individual file is enabled for patching
+    /// Whether this mod is enabled for use (service layer concern)
     /// </summary>
     public bool IsEnabled { get; set; } = true;
     
@@ -34,21 +37,6 @@ public class ModFile
         ModType.Texture => "Texture Replacement",
         _ => "Unknown Type"
     };
-    
-    /// <summary>
-    /// Status text for display
-    /// </summary>
-    public string StatusText => IsEnabled ? "Ready" : "Disabled";
-    
-    /// <summary>
-    /// Gets just the filename without path
-    /// </summary>
-    public string FileName => Path.GetFileName(FilePath);
-    
-    /// <summary>
-    /// Gets the file extension
-    /// </summary>
-    public string Extension => Path.GetExtension(FilePath);
     
     private static string FormatFileSize(long bytes)
     {

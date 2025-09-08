@@ -1,16 +1,12 @@
-using System.ComponentModel;
-using System.Collections.ObjectModel;
+using WMO.Core.Models.Enums;
 
 namespace WMO.Core.Models;
 
 /// <summary>
-/// Represents a mod that is organized as a folder containing multiple mod files
+/// Represents a mod that is organized as a folder containing multiple mod files (pure business model)
 /// </summary>
-public class FolderMod : INotifyPropertyChanged
+public class FolderMod
 {
-    private bool _isEnabled = true;
-    private string _status = "Ready";
-    
     public required string Name { get; init; }
     public required string FolderPath { get; init; }
     public string? Description { get; set; }
@@ -22,25 +18,17 @@ public class FolderMod : INotifyPropertyChanged
     /// <summary>
     /// Collection of mod files contained in this mod folder
     /// </summary>
-    public ObservableCollection<ModFile> ModFiles { get; } = new();
+    public List<ModFile> ModFiles { get; } = new();
     
     /// <summary>
     /// Whether this mod is enabled for patching
     /// </summary>
-    public bool IsEnabled
-    {
-        get => _isEnabled;
-        set => SetProperty(ref _isEnabled, value);
-    }
+    public bool IsEnabled { get; set; } = true;
     
     /// <summary>
     /// Current status of the mod (Ready, Patching, Complete, Error)
     /// </summary>
-    public string Status
-    {
-        get => _status;
-        set => SetProperty(ref _status, value);
-    }
+    public string Status { get; set; } = "Ready";
     
     /// <summary>
     /// Gets the total number of mod files
@@ -78,20 +66,10 @@ public class FolderMod : INotifyPropertyChanged
     public int SpriteFileCount => ModFiles.Count(f => f.Type == ModType.Sprite);
     public int TextureFileCount => ModFiles.Count(f => f.Type == ModType.Texture);
     
-    public event PropertyChangedEventHandler? PropertyChanged;
-    
-    protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-    
-    protected bool SetProperty<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
-    {
-        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
+    /// <summary>
+    /// Gets enabled file count
+    /// </summary>
+    public int EnabledFileCount => ModFiles.Count(f => f.IsEnabled);
     
     private static string FormatFileSize(long bytes)
     {

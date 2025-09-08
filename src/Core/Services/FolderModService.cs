@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using WMO.Core.Models;
+using WMO.Core.Models.Enums;
 using WMO.Core.Logging;
 using System.Text.Json;
 
@@ -303,15 +304,4 @@ public class FolderModService
     }
 }
 
-/// <summary>
-/// Metadata for a mod folder that can be stored in mod.json
-/// </summary>
-public class ModMetadata
-{
-    public string? Name { get; set; }
-    public string? Description { get; set; }
-    public string? Author { get; set; }
-    public string? Version { get; set; }
-    public DateTime? CreatedDate { get; set; }
-    public string[]? Tags { get; set; }
-}
+

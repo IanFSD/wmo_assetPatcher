@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using WMO.Core.Models;
+using WMO.Core.Models.Enums;
 using WMO.Core.Helpers;
 using WMO.Core.Logging;
 
@@ -10,7 +11,7 @@ namespace WMO.Core.Services;
 /// </summary>
 public class ModService
 {
-    private readonly ObservableCollection<ModInfo> _availableMods = new();
+    private readonly ObservableCollection<ModMetadata> _availableMods = new();
     private readonly string _modsDirectory;
     
     public ModService()
@@ -21,7 +22,7 @@ public class ModService
     /// <summary>
     /// Collection of available mods
     /// </summary>
-    public ObservableCollection<ModInfo> AvailableMods => _availableMods;
+    public ObservableCollection<ModMetadata> AvailableMods => _availableMods;
     
     /// <summary>
     /// Scans for and loads all available mods
@@ -63,7 +64,7 @@ public class ModService
                     continue; // Skip unsupported files
                 }
                 
-                var modInfo = new ModInfo
+                var modInfo = new ModMetadata
                 {
                     Name = fileName,
                     FilePath = filePath,
@@ -71,9 +72,9 @@ public class ModService
                     FileSize = fileInfo.Length,
                     CreatedDate = fileInfo.CreationTime,
                     ModifiedDate = fileInfo.LastWriteTime,
-                    Description = GenerateDescription(fileName, modType),
-                    IsEnabled = true
+                    Description = GenerateDescription(fileName, modType)
                 };
+                modInfo.IsEnabled = true;
                 
                 // Add to collection (we're not using WPF yet, so just add directly)
                 _availableMods.Add(modInfo);
@@ -122,7 +123,7 @@ public class ModService
     /// <summary>
     /// Removes a mod from the collection and file system
     /// </summary>
-    public async Task<bool> RemoveModAsync(ModInfo modInfo)
+    public async Task<bool> RemoveModAsync(ModMetadata modInfo)
     {
         try
         {
