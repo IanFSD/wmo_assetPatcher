@@ -29,7 +29,7 @@ public partial class SetupForm : Form
         this.Size = new Size(500, 400);
         
         // Show default game path
-        txtGamePath.Text = SettingsHolder.DEFAULT_GAME_PATH;
+        txtGamePath.Text = SettingsService.DEFAULT_GAME_PATH;
         
         // Populate log level combo box
         cmbLogLevel.Items.AddRange(Enum.GetValues<LogLevel>().Cast<object>().ToArray());
@@ -41,7 +41,7 @@ public partial class SetupForm : Form
 
     private void CheckDefaultPath()
     {
-        bool isValid = GamePathService.ValidateGamePath(SettingsHolder.DEFAULT_GAME_PATH);
+        bool isValid = GamePathService.ValidateGamePath(SettingsService.DEFAULT_GAME_PATH);
         
         if (isValid)
         {
@@ -103,15 +103,9 @@ public partial class SetupForm : Form
         {
             SelectedLogLevel = (LogLevel)cmbLogLevel.SelectedItem!;
             
-            // Save initial settings
-            var settings = UISettingsService.Current;
-            settings.GamePath = SelectedGamePath;
-            settings.LogLevel = SelectedLogLevel;
-            UISettingsService.SaveSettings(settings);
-            
-            // Also update the legacy settings holder
-            SettingsHolder.InstallPath = SelectedGamePath;
-            SettingsHolder.LogLevel = SelectedLogLevel;
+            // Save initial settings using the unified settings service
+            SettingsService.Current.GamePath = SelectedGamePath;
+            SettingsService.Current.LogLevel = SelectedLogLevel;
             
             this.DialogResult = DialogResult.OK;
             this.Close();

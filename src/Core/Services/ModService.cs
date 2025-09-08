@@ -202,6 +202,7 @@ public class ModService
     {
         return type switch
         {
+            
             ModType.Audio => $"Audio replacement for {fileName}",
             ModType.Sprite => $"Sprite replacement for {fileName}",
             ModType.Texture => $"Texture replacement for {fileName}",

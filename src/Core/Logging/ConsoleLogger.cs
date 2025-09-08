@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using WMO.Core.Helpers;
+using WMO.Core.Services;
 
 namespace WMO.Core.Logging;
 
@@ -24,10 +25,10 @@ public static class Logger {
     public static string GetLogPath() => GetInstallLogPath() ?? ExeLogFilePath;
 
     private static string? GetInstallLogPath() {
-        if (string.IsNullOrEmpty(SettingsHolder.InstallPath))
+        if (string.IsNullOrEmpty(SettingsService.Current.GamePath))
             return null;
 
-        var installLogDirectory = Path.Combine(SettingsHolder.InstallPath, "Logs");
+        var installLogDirectory = Path.Combine(SettingsService.Current.GamePath, "Logs");
         return !Directory.Exists(installLogDirectory) ? null : Path.Combine(installLogDirectory, "Whisker Mountain Outbreak.log");
     }
 
@@ -63,7 +64,7 @@ public static class Logger {
 
     public static void Log(LogLevel lvl, [InterpolatedStringHandlerArgument("lvl")] LogInterpolatedStringHandler handler)
     {
-        if (lvl > SettingsHolder.LogLevel || SettingsHolder.LogLevel == LogLevel.None)
+        if (lvl > SettingsService.Current.LogLevel || SettingsService.Current.LogLevel == LogLevel.None)
             return;
 
         WriteToLogs($"{lvl.ToString().ToUpper()}: {handler.ToString()}");
@@ -74,7 +75,7 @@ public static class Logger {
     }
 
     public static void LogLineBreak(LogLevel lvl) {
-        if (lvl > SettingsHolder.LogLevel || SettingsHolder.LogLevel == LogLevel.None) return;
+        if (lvl > SettingsService.Current.LogLevel || SettingsService.Current.LogLevel == LogLevel.None) return;
         WriteToLogs(string.Empty, timestamped: false);
     }
 }

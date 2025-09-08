@@ -1,4 +1,5 @@
 using WMO.Core.Logging;
+using WMO.Core.Services;
 
 namespace WMO.Core.Helpers;
 
@@ -6,15 +7,15 @@ public static class BackupManager
 {
 	private const string BACKUPS_RELATIVE_PATH = "Backups";
 
-	// Safe access to backup folder path - uses default path if InstallPath is null
-	private static string BackupFolderPath => Path.Combine(SettingsHolder.InstallPath ?? SettingsHolder.DEFAULT_GAME_PATH, BACKUPS_RELATIVE_PATH);
+	// Safe access to backup folder path - uses default path if GamePath is null
+	private static string BackupFolderPath => Path.Combine(SettingsService.Current.GamePath ?? SettingsService.DEFAULT_GAME_PATH, BACKUPS_RELATIVE_PATH);
 
     public static bool RecoverBackups()
 	{
 		Logger.Log(LogLevel.Info, $"Starting backup recovery process...");
 		
 		// Get the effective install path (default if null)
-		var effectiveInstallPath = SettingsHolder.InstallPath ?? SettingsHolder.DEFAULT_GAME_PATH;
+		var effectiveInstallPath = SettingsService.Current.GamePath ?? SettingsService.DEFAULT_GAME_PATH;
 		Logger.Log(LogLevel.Debug, $"Using install path: {effectiveInstallPath}");
 		Logger.Log(LogLevel.Debug, $"Backup folder path: {BackupFolderPath}");
 		
@@ -136,7 +137,7 @@ public static class BackupManager
 		Logger.Log(LogLevel.Debug, $"Starting backup creation for file: {filePath}");
 		
 		// Get the effective install path (default if null)
-		var effectiveInstallPath = SettingsHolder.InstallPath ?? SettingsHolder.DEFAULT_GAME_PATH;
+		var effectiveInstallPath = SettingsService.Current.GamePath ?? SettingsService.DEFAULT_GAME_PATH;
 		Logger.Log(LogLevel.Debug, $"Using install path: {effectiveInstallPath}");
 		Logger.Log(LogLevel.Debug, $"Backup folder path: {BackupFolderPath}");
 
@@ -237,7 +238,7 @@ public static class BackupManager
 
 	public static string? GetBackupPath(string filePath)
 	{
-		var effectiveInstallPath = SettingsHolder.InstallPath ?? SettingsHolder.DEFAULT_GAME_PATH;
+		var effectiveInstallPath = SettingsService.Current.GamePath ?? SettingsService.DEFAULT_GAME_PATH;
 		var backupPath = Path.Combine(BackupFolderPath, Path.GetRelativePath(effectiveInstallPath, filePath));
 		return File.Exists(backupPath) ? backupPath : null;
 	}
@@ -316,7 +317,7 @@ public static class BackupManager
 		Logger.Log(LogLevel.Info, $"Starting cleanup of outdated backup data...");
 		
 		// Get the effective install path (default if null)
-		var effectiveInstallPath = SettingsHolder.InstallPath ?? SettingsHolder.DEFAULT_GAME_PATH;
+		var effectiveInstallPath = SettingsService.Current.GamePath ?? SettingsService.DEFAULT_GAME_PATH;
 		Logger.Log(LogLevel.Debug, $"Using install path: {effectiveInstallPath}");
 		Logger.Log(LogLevel.Debug, $"Checking backup folder: {BackupFolderPath}");
 

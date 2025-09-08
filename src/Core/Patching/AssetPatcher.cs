@@ -1,6 +1,7 @@
 using AssetsTools.NET;
 using WMO.Core.Helpers;
 using WMO.Core.Logging;
+using WMO.Core.Services;
 using AssetsTools.NET.Extra;
 using NAudio.Wave;
 using NAudio.Vorbis;
@@ -177,7 +178,7 @@ public static class AssetPatcher
                 BackupManager.DeleteAllBackups();
                 Logger.Log(LogLevel.Debug, $"All backup files have been deleted");
                 
-                SettingsHolder.IsPatched = true;
+                SettingsService.Current.IsPatched = true;
                 return true;
             }
             else

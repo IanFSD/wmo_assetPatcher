@@ -22,19 +22,18 @@ internal static class Program
         bool consoleMode = args.Contains("--console");
         bool debugMode = args.Contains("--debug");
         
+
+        
         try
         {
-            Logger.Log(LogLevel.Info, $"=== WMO Asset Patcher Started ===");
-            
-            // Configure logging level based on build configuration or debug flag
+            // Configure logging level based on build configuration or debug flag BEFORE any logging
 #if DEBUG
-            SettingsHolder.LogLevel = LogLevel.Debug; // Show debug logs in debug mode
+            SettingsService.Current.LogLevel = LogLevel.Debug; // Show debug logs in debug mode
 #else
-            SettingsHolder.LogLevel = debugMode ? LogLevel.Debug : LogLevel.Info; // Show debug logs if --debug flag is used
+            SettingsService.Current.LogLevel = debugMode ? LogLevel.Debug : LogLevel.Info; // Show debug logs if --debug flag is used
 #endif
-
-            // Load legacy settings
-            SettingsSaver.LoadSettings();
+            
+            Logger.Log(LogLevel.Info, $"=== WMO Asset Patcher Started ===");
 
             // Clean up any outdated backup data from previous runs
             BackupManager.CleanupOutdatedBackups();
@@ -84,8 +83,8 @@ internal static class Program
     {
         Logger.Log(LogLevel.Info, $"Starting UI mode");
         
-        // Check if this is the first run
-        if (UISettingsService.IsFirstRun())
+        // Check if this is the first run (check if GamePath is null/empty)
+        if (string.IsNullOrEmpty(SettingsService.Current.GamePath))
         {
             Logger.Log(LogLevel.Info, $"First run detected, showing setup form");
             
@@ -100,16 +99,6 @@ internal static class Program
             
             Logger.Log(LogLevel.Info, $"Setup completed successfully");
         }
-        
-        // Load UI settings
-        var settings = UISettingsService.LoadSettings();
-        
-        // Sync with legacy settings holder
-        if (!string.IsNullOrEmpty(settings.GamePath))
-        {
-            SettingsHolder.InstallPath = settings.GamePath;
-        }
-        SettingsHolder.LogLevel = settings.LogLevel;
         
         Logger.Log(LogLevel.Info, $"Starting main application window");
         
@@ -181,7 +170,7 @@ internal static class Program
 #if DEBUG
         // In debug mode, always use default path and skip user input
         Console.WriteLine("DEBUG MODE: Using default game path and skipping user input.");
-        gamePath = SettingsHolder.DEFAULT_GAME_PATH;
+        gamePath = SettingsService.DEFAULT_GAME_PATH;
         Console.WriteLine($"Using game path: {gamePath}");
         Console.WriteLine();
 #else
@@ -189,7 +178,7 @@ internal static class Program
         {
             // Release mode with --debug flag: behave like debug mode
             Console.WriteLine("DEBUG MODE: Using default game path and skipping user input.");
-            gamePath = SettingsHolder.DEFAULT_GAME_PATH;
+            gamePath = SettingsService.DEFAULT_GAME_PATH;
             Console.WriteLine($"Using game path: {gamePath}");
             Console.WriteLine();
         }
@@ -303,7 +292,7 @@ internal static class Program
         Console.WriteLine("Game Path Configuration");
         Console.WriteLine("======================");
         Console.WriteLine();
-        Console.WriteLine($"Default path: {SettingsHolder.DEFAULT_GAME_PATH}");
+        Console.WriteLine($"Default path: {SettingsService.DEFAULT_GAME_PATH}");
         Console.WriteLine();
         Console.Write("Use the default path? (Y/N): ");
         
@@ -314,7 +303,7 @@ internal static class Program
         if (useDefault)
         {
             Console.WriteLine("Using default game path.");
-            return SettingsHolder.DEFAULT_GAME_PATH;
+            return SettingsService.DEFAULT_GAME_PATH;
         }
 
         Console.WriteLine("Please enter the path to your game's root directory:");

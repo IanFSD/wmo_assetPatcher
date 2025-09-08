@@ -9,15 +9,16 @@ namespace WMO.Core.Models;
 public class AppSettings : INotifyPropertyChanged
 {
     private string? _gamePath;
-    private bool _checkForUpdatesOnStartup = true;
     private bool _minimizeToTray = false;
-    private bool _autoBackup = true;
-    private bool _confirmBeforePatching = true;
     private LogLevel _logLevel = LogLevel.Info;
     private bool _darkMode = false;
     private int _windowWidth = 800;
     private int _windowHeight = 600;
     private bool _rememberWindowSize = true;
+    
+    // Legacy console settings properties
+    private bool _allowStartupWithConflicts = false;
+    private bool _isPatched = false;
     
     /// <summary>
     /// Path to the game installation directory
@@ -29,39 +30,12 @@ public class AppSettings : INotifyPropertyChanged
     }
     
     /// <summary>
-    /// Whether to check for updates on startup
-    /// </summary>
-    public bool CheckForUpdatesOnStartup
-    {
-        get => _checkForUpdatesOnStartup;
-        set => SetProperty(ref _checkForUpdatesOnStartup, value);
-    }
-    
-    /// <summary>
     /// Whether to minimize to system tray
     /// </summary>
     public bool MinimizeToTray
     {
         get => _minimizeToTray;
         set => SetProperty(ref _minimizeToTray, value);
-    }
-    
-    /// <summary>
-    /// Whether to automatically create backups before patching
-    /// </summary>
-    public bool AutoBackup
-    {
-        get => _autoBackup;
-        set => SetProperty(ref _autoBackup, value);
-    }
-    
-    /// <summary>
-    /// Whether to show confirmation dialog before patching
-    /// </summary>
-    public bool ConfirmBeforePatching
-    {
-        get => _confirmBeforePatching;
-        set => SetProperty(ref _confirmBeforePatching, value);
     }
     
     /// <summary>
@@ -107,6 +81,24 @@ public class AppSettings : INotifyPropertyChanged
     {
         get => _rememberWindowSize;
         set => SetProperty(ref _rememberWindowSize, value);
+    }
+    
+    /// <summary>
+    /// Whether to allow startup even when there are conflicts (legacy console setting)
+    /// </summary>
+    public bool AllowStartupWithConflicts
+    {
+        get => _allowStartupWithConflicts;
+        set => SetProperty(ref _allowStartupWithConflicts, value);
+    }
+    
+    /// <summary>
+    /// Whether the game has been patched (legacy console setting)
+    /// </summary>
+    public bool IsPatched
+    {
+        get => _isPatched;
+        set => SetProperty(ref _isPatched, value);
     }
     
     public event PropertyChangedEventHandler? PropertyChanged;

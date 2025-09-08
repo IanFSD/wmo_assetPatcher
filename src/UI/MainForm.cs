@@ -29,7 +29,7 @@ public partial class MainForm : Form
         this.StartPosition = FormStartPosition.CenterScreen;
         
         // Load window size from settings
-        var settings = UISettingsService.Current;
+        var settings = SettingsService.Current;
         if (settings.RememberWindowSize)
         {
             this.Size = new Size(settings.WindowWidth, settings.WindowHeight);
@@ -54,7 +54,7 @@ public partial class MainForm : Form
 
     private void InitializeSettingsControls()
     {
-        var settings = UISettingsService.Current;
+        var settings = SettingsService.Current;
         
         // Populate log level combo box
         cmbLogLevel.Items.Clear();
@@ -69,9 +69,6 @@ public partial class MainForm : Form
         // Set up event handlers for settings controls
         txtGamePath.TextChanged += TxtGamePath_TextChanged;
         btnBrowseGamePath.Click += BtnBrowseGamePath_Click;
-        chkAutoBackup.CheckedChanged += ChkAutoBackup_CheckedChanged;
-        chkConfirmBeforePatching.CheckedChanged += ChkConfirmBeforePatching_CheckedChanged;
-        chkCheckForUpdates.CheckedChanged += ChkCheckForUpdates_CheckedChanged;
         cmbLogLevel.SelectedIndexChanged += CmbLogLevel_SelectedIndexChanged;
         chkRememberWindowSize.CheckedChanged += ChkRememberWindowSize_CheckedChanged;
         chkDarkMode.CheckedChanged += ChkDarkMode_CheckedChanged;
@@ -79,12 +76,9 @@ public partial class MainForm : Form
 
     private void LoadSettingsToControls()
     {
-        var settings = UISettingsService.Current;
+        var settings = SettingsService.Current;
         
         txtGamePath.Text = settings.GamePath ?? "";
-        chkAutoBackup.Checked = settings.AutoBackup;
-        chkConfirmBeforePatching.Checked = settings.ConfirmBeforePatching;
-        chkCheckForUpdates.Checked = settings.CheckForUpdatesOnStartup;
         cmbLogLevel.SelectedItem = settings.LogLevel;
         chkRememberWindowSize.Checked = settings.RememberWindowSize;
         chkDarkMode.Checked = settings.DarkMode;
@@ -134,7 +128,7 @@ public partial class MainForm : Form
 
     private void UpdateGamePathStatus()
     {
-        var settings = UISettingsService.Current;
+        var settings = SettingsService.Current;
         var gamePath = settings.GamePath;
         
         if (string.IsNullOrEmpty(gamePath))
@@ -175,23 +169,18 @@ public partial class MainForm : Form
                 return;
             }
 
-            var settings = UISettingsService.Current;
-            
-            // Show confirmation if enabled
-            if (settings.ConfirmBeforePatching)
-            {
-                var totalFiles = selectedMods.Sum(m => m.FileCount);
-                var result = MessageBox.Show(
-                    $"This will patch the game with {selectedMods.Count} selected mod(s) containing {totalFiles} files. " +
-                    "The operation will create backups of original files before making changes.\n\n" +
-                    "Do you want to continue?",
-                    "Confirm Patching",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
+            // Always show confirmation before patching
+            var totalFiles = selectedMods.Sum(m => m.FileCount);
+            var result = MessageBox.Show(
+                $"This will patch the game with {selectedMods.Count} selected mod(s) containing {totalFiles} files. " +
+                "The operation will create backups of original files before making changes.\n\n" +
+                "Do you want to continue?",
+                "Confirm Patching",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
                 
-                if (result != DialogResult.Yes)
-                    return;
-            }
+            if (result != DialogResult.Yes)
+                return;
 
             _isPatchingInProgress = true;
             UpdateGamePathStatus();
@@ -202,7 +191,8 @@ public partial class MainForm : Form
                 mod.Status = "Preparing...";
             }
             
-            // Show console output form
+            // Show console output form  
+            var settings = SettingsService.Current;
             var consoleForm = new ConsoleOutputForm(settings.LogLevel, "Patching Game - Progress");
             consoleForm.Show();
             
@@ -259,7 +249,7 @@ public partial class MainForm : Form
     {
         try
         {
-            var settings = UISettingsService.Current;
+            var settings = SettingsService.Current;
             bool success = GamePathService.LaunchGame(settings.GamePath);
             
             if (!success)
@@ -296,7 +286,7 @@ public partial class MainForm : Form
     {
         if (this.WindowState != FormWindowState.Minimized)
         {
-            var settings = UISettingsService.Current;
+            var settings = SettingsService.Current;
             if (settings.RememberWindowSize)
             {
                 settings.WindowWidth = this.Width;
@@ -308,7 +298,7 @@ public partial class MainForm : Form
     private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
     {
         // Save window size
-        var settings = UISettingsService.Current;
+        var settings = SettingsService.Current;
         if (settings.RememberWindowSize && this.WindowState != FormWindowState.Minimized)
         {
             settings.WindowWidth = this.Width;
@@ -325,7 +315,7 @@ public partial class MainForm : Form
     // Settings event handlers
     private void TxtGamePath_TextChanged(object? sender, EventArgs e)
     {
-        var settings = UISettingsService.Current;
+        var settings = SettingsService.Current;
         settings.GamePath = txtGamePath.Text;
         UpdateGamePathStatus();
     }
@@ -336,7 +326,7 @@ public partial class MainForm : Form
         {
             Description = "Select the game installation folder",
             UseDescriptionForTitle = true,
-            SelectedPath = UISettingsService.Current.GamePath ?? ""
+            SelectedPath = SettingsService.Current.GamePath ?? ""
         };
 
         if (dialog.ShowDialog() == DialogResult.OK)
@@ -345,37 +335,22 @@ public partial class MainForm : Form
         }
     }
 
-    private void ChkAutoBackup_CheckedChanged(object? sender, EventArgs e)
-    {
-        UISettingsService.Current.AutoBackup = chkAutoBackup.Checked;
-    }
-
-    private void ChkConfirmBeforePatching_CheckedChanged(object? sender, EventArgs e)
-    {
-        UISettingsService.Current.ConfirmBeforePatching = chkConfirmBeforePatching.Checked;
-    }
-
-    private void ChkCheckForUpdates_CheckedChanged(object? sender, EventArgs e)
-    {
-        UISettingsService.Current.CheckForUpdatesOnStartup = chkCheckForUpdates.Checked;
-    }
-
     private void CmbLogLevel_SelectedIndexChanged(object? sender, EventArgs e)
     {
         if (cmbLogLevel.SelectedItem is LogLevel level)
         {
-            UISettingsService.Current.LogLevel = level;
+            SettingsService.Current.LogLevel = level;
         }
     }
 
     private void ChkRememberWindowSize_CheckedChanged(object? sender, EventArgs e)
     {
-        UISettingsService.Current.RememberWindowSize = chkRememberWindowSize.Checked;
+        SettingsService.Current.RememberWindowSize = chkRememberWindowSize.Checked;
     }
 
     private void ChkDarkMode_CheckedChanged(object? sender, EventArgs e)
     {
-        UISettingsService.Current.DarkMode = chkDarkMode.Checked;
+        SettingsService.Current.DarkMode = chkDarkMode.Checked;
         // TODO: Implement dark mode theme switching
         if (chkDarkMode.Checked)
         {

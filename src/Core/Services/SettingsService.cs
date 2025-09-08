@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using WMO.Core.Logging;
 using WMO.Core.Models;
@@ -5,36 +6,38 @@ using WMO.Core.Models;
 namespace WMO.Core.Services;
 
 /// <summary>
-/// Service for managing UI application settings
+/// Service for managing application settings (unified settings system)
 /// </summary>
-public static class UISettingsService
+public static class SettingsService
 {
+    public const string DEFAULT_GAME_PATH = @"C:\Program Files (x86)\Steam\steamapps\common\Whisper Mountain Outbreak";
+    
     private static readonly string SettingsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Settings");
-    private static readonly string UISettingsPath = Path.Combine(SettingsDirectory, "ui_settings.json");
+    private static readonly string SettingsPath = Path.Combine(SettingsDirectory, "settings.json");
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
     
     private static AppSettings? _currentSettings;
     
     /// <summary>
-    /// Gets the current UI settings instance
+    /// Gets the current settings instance
     /// </summary>
     public static AppSettings Current => _currentSettings ??= LoadSettings();
     
     /// <summary>
-    /// Loads UI settings from the settings file
+    /// Loads settings from the settings file, with migration support for legacy files
     /// </summary>
     /// <returns>The loaded settings or default settings if file doesn't exist</returns>
     public static AppSettings LoadSettings()
     {
         try
         {
-            if (File.Exists(UISettingsPath))
+            // Try to load from the main settings.json first
+            if (File.Exists(SettingsPath))
             {
-                var json = File.ReadAllText(UISettingsPath);
+                var json = File.ReadAllText(SettingsPath);
                 var settings = JsonSerializer.Deserialize<AppSettings>(json, Options);
                 if (settings != null)
                 {
-                    Logger.Log(LogLevel.Info, $"UI settings loaded from: {UISettingsPath}");
                     _currentSettings = settings;
                     
                     // Subscribe to property changes for auto-save
@@ -44,33 +47,22 @@ public static class UISettingsService
                 }
             }
             
-            Logger.Log(LogLevel.Info, $"UI settings file not found, using defaults");
+            // No settings file found, using defaults
         }
         catch (Exception ex)
         {
-            Logger.Log(LogLevel.Error, $"Error loading UI settings: {ex.Message}");
+            Console.WriteLine($"Error loading settings: {ex.Message}"); // Use Console to avoid circular dependency
         }
         
         // Return default settings
         var defaultSettings = new AppSettings();
         _currentSettings = defaultSettings;
-        
-        // Subscribe to property changes for auto-save
         defaultSettings.PropertyChanged += OnSettingsChanged;
-        
         return defaultSettings;
     }
     
     /// <summary>
-    /// Saves the current UI settings to file
-    /// </summary>
-    public static void SaveSettings()
-    {
-        SaveSettings(Current);
-    }
-    
-    /// <summary>
-    /// Saves the specified UI settings to file
+    /// Saves settings to the settings file
     /// </summary>
     /// <param name="settings">Settings to save</param>
     public static void SaveSettings(AppSettings settings)
@@ -80,35 +72,32 @@ public static class UISettingsService
             Directory.CreateDirectory(SettingsDirectory);
             
             var json = JsonSerializer.Serialize(settings, Options);
-            File.WriteAllText(UISettingsPath, json);
+            File.WriteAllText(SettingsPath, json);
             
-            Logger.Log(LogLevel.Debug, $"UI settings saved to: {UISettingsPath}");
+            Logger.Log(LogLevel.Debug, $"Settings saved to: {SettingsPath}");
         }
         catch (Exception ex)
         {
-            Logger.Log(LogLevel.Error, $"Error saving UI settings: {ex.Message}");
+            Logger.Log(LogLevel.Error, $"Error saving settings: {ex.Message}");
         }
     }
     
     /// <summary>
     /// Checks if this is the first time the application is running
-    /// (i.e., no UI settings file exists)
+    /// (i.e., no settings file exists)
     /// </summary>
     /// <returns>True if this is the first run</returns>
-    public static bool IsFirstRun()
-    {
-        return !File.Exists(UISettingsPath);
-    }
+    public static bool IsFirstRun() => !File.Exists(SettingsPath);
     
     /// <summary>
-    /// Event handler for settings property changes - auto-saves settings
+    /// Event handler for when settings properties change - auto-saves settings
     /// </summary>
-    private static void OnSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private static void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (sender is AppSettings settings)
         {
-            Logger.Log(LogLevel.Debug, $"UI setting changed: {e.PropertyName}");
             SaveSettings(settings);
+            Logger.Log(LogLevel.Debug, $"Setting changed: {e.PropertyName}");
         }
     }
 }

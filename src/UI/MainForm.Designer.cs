@@ -15,9 +15,6 @@ namespace WMO.UI
         private TabPage tabMods;
         private TabPage tabSettings;
         private GroupBox grpGeneral;
-        private CheckBox chkAutoBackup;
-        private CheckBox chkConfirmBeforePatching;
-        private CheckBox chkCheckForUpdates;
         private GroupBox grpLogging;
         private ComboBox cmbLogLevel;
         private Label lblLogLevel;
@@ -72,9 +69,6 @@ namespace WMO.UI
             this.lblGamePath = new Label();
             this.txtGamePath = new TextBox();
             this.btnBrowseGamePath = new Button();
-            this.chkAutoBackup = new CheckBox();
-            this.chkConfirmBeforePatching = new CheckBox();
-            this.chkCheckForUpdates = new CheckBox();
             this.grpLogging = new GroupBox();
             this.lblLogLevel = new Label();
             this.cmbLogLevel = new ComboBox();
@@ -251,9 +245,6 @@ namespace WMO.UI
             this.grpGeneral.Controls.Add(this.lblGamePath);
             this.grpGeneral.Controls.Add(this.txtGamePath);
             this.grpGeneral.Controls.Add(this.btnBrowseGamePath);
-            this.grpGeneral.Controls.Add(this.chkAutoBackup);
-            this.grpGeneral.Controls.Add(this.chkConfirmBeforePatching);
-            this.grpGeneral.Controls.Add(this.chkCheckForUpdates);
             this.grpGeneral.Location = new Point(6, 6);
             this.grpGeneral.Name = "grpGeneral";
             this.grpGeneral.Size = new Size(840, 160);
@@ -288,39 +279,6 @@ namespace WMO.UI
             this.btnBrowseGamePath.TabIndex = 2;
             this.btnBrowseGamePath.Text = "Browse...";
             this.btnBrowseGamePath.UseVisualStyleBackColor = true;
-            
-            // 
-            // chkAutoBackup
-            // 
-            this.chkAutoBackup.AutoSize = true;
-            this.chkAutoBackup.Location = new Point(10, 60);
-            this.chkAutoBackup.Name = "chkAutoBackup";
-            this.chkAutoBackup.Size = new Size(205, 19);
-            this.chkAutoBackup.TabIndex = 3;
-            this.chkAutoBackup.Text = "Automatically backup files before patching";
-            this.chkAutoBackup.UseVisualStyleBackColor = true;
-            
-            // 
-            // chkConfirmBeforePatching
-            // 
-            this.chkConfirmBeforePatching.AutoSize = true;
-            this.chkConfirmBeforePatching.Location = new Point(10, 85);
-            this.chkConfirmBeforePatching.Name = "chkConfirmBeforePatching";
-            this.chkConfirmBeforePatching.Size = new Size(185, 19);
-            this.chkConfirmBeforePatching.TabIndex = 4;
-            this.chkConfirmBeforePatching.Text = "Show confirmation before patching";
-            this.chkConfirmBeforePatching.UseVisualStyleBackColor = true;
-            
-            // 
-            // chkCheckForUpdates
-            // 
-            this.chkCheckForUpdates.AutoSize = true;
-            this.chkCheckForUpdates.Location = new Point(10, 110);
-            this.chkCheckForUpdates.Name = "chkCheckForUpdates";
-            this.chkCheckForUpdates.Size = new Size(150, 19);
-            this.chkCheckForUpdates.TabIndex = 5;
-            this.chkCheckForUpdates.Text = "Check for updates on startup";
-            this.chkCheckForUpdates.UseVisualStyleBackColor = true;
             
             // 
             // grpLogging
