@@ -1,6 +1,7 @@
 using WMO.Core.Logging;
 using WMO.Core.Services;
 using WMO.Core.Helpers;
+using WMO.Core.Models.Enums;
 
 namespace WMO.UI.Forms;
 
@@ -10,6 +11,7 @@ namespace WMO.UI.Forms;
 public partial class SetupForm : Form
 {
     public string? SelectedGamePath { get; private set; }
+    public GameVersion SelectedGameVersion { get; private set; } = GameVersion.FullGame;
     public LogLevel SelectedLogLevel { get; private set; } = LogLevel.Info;
 
     public SetupForm()
@@ -26,10 +28,15 @@ public partial class SetupForm : Form
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;
         this.MinimizeBox = false;
-        this.Size = new Size(500, 400);
+        this.Size = new Size(500, 430);
         
         // Show default game path
         txtGamePath.Text = SettingsService.DEFAULT_GAME_PATH;
+        
+        // Populate game version combo box
+        cmbGameVersion.Items.Add("Full Game");
+        cmbGameVersion.Items.Add("Friend's Pass");
+        cmbGameVersion.SelectedIndex = 0; // Default to Full Game
         
         // Populate log level combo box
         cmbLogLevel.Items.AddRange(Enum.GetValues<LogLevel>().Cast<object>().ToArray());
@@ -102,10 +109,12 @@ public partial class SetupForm : Form
         if (btnFinish.Enabled)
         {
             SelectedLogLevel = (LogLevel)cmbLogLevel.SelectedItem!;
+            SelectedGameVersion = cmbGameVersion.SelectedIndex == 0 ? GameVersion.FullGame : GameVersion.FriendsPass;
             
             // Save initial settings using the unified settings service
             SettingsService.Current.GamePath = SelectedGamePath;
             SettingsService.Current.LogLevel = SelectedLogLevel;
+            SettingsService.Current.GameVersion = SelectedGameVersion;
             
             this.DialogResult = DialogResult.OK;
             this.Close();

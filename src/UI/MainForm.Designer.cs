@@ -24,6 +24,8 @@ namespace WMO.UI
         private Button btnBrowseGamePath;
         private TextBox txtGamePath;
         private Label lblGamePath;
+        private ComboBox cmbGameVersion;
+        private Label lblGameVersion;
         
         // Mods tab controls
         private ListView lstMods;
@@ -69,6 +71,8 @@ namespace WMO.UI
             this.lblGamePath = new Label();
             this.txtGamePath = new TextBox();
             this.btnBrowseGamePath = new Button();
+            this.lblGameVersion = new Label();
+            this.cmbGameVersion = new ComboBox();
             this.grpLogging = new GroupBox();
             this.lblLogLevel = new Label();
             this.cmbLogLevel = new ComboBox();
@@ -245,9 +249,11 @@ namespace WMO.UI
             this.grpGeneral.Controls.Add(this.lblGamePath);
             this.grpGeneral.Controls.Add(this.txtGamePath);
             this.grpGeneral.Controls.Add(this.btnBrowseGamePath);
+            this.grpGeneral.Controls.Add(this.lblGameVersion);
+            this.grpGeneral.Controls.Add(this.cmbGameVersion);
             this.grpGeneral.Location = new Point(6, 6);
             this.grpGeneral.Name = "grpGeneral";
-            this.grpGeneral.Size = new Size(840, 160);
+            this.grpGeneral.Size = new Size(840, 100);
             this.grpGeneral.TabIndex = 0;
             this.grpGeneral.TabStop = false;
             this.grpGeneral.Text = "General Settings";
@@ -281,11 +287,31 @@ namespace WMO.UI
             this.btnBrowseGamePath.UseVisualStyleBackColor = true;
             
             // 
+            // lblGameVersion
+            // 
+            this.lblGameVersion.AutoSize = true;
+            this.lblGameVersion.Location = new Point(10, 55);
+            this.lblGameVersion.Name = "lblGameVersion";
+            this.lblGameVersion.Size = new Size(90, 15);
+            this.lblGameVersion.TabIndex = 3;
+            this.lblGameVersion.Text = "Game Version:";
+            
+            // 
+            // cmbGameVersion
+            // 
+            this.cmbGameVersion.DropDownStyle = ComboBoxStyle.DropDownList;
+            this.cmbGameVersion.Location = new Point(110, 52);
+            this.cmbGameVersion.Name = "cmbGameVersion";
+            this.cmbGameVersion.Size = new Size(200, 23);
+            this.cmbGameVersion.TabIndex = 4;
+
+            
+            // 
             // grpLogging
             // 
             this.grpLogging.Controls.Add(this.lblLogLevel);
             this.grpLogging.Controls.Add(this.cmbLogLevel);
-            this.grpLogging.Location = new Point(6, 180);
+            this.grpLogging.Location = new Point(6, 120);
             this.grpLogging.Name = "grpLogging";
             this.grpLogging.Size = new Size(840, 70);
             this.grpLogging.TabIndex = 1;
@@ -317,7 +343,7 @@ namespace WMO.UI
             // 
             this.grpInterface.Controls.Add(this.chkRememberWindowSize);
             this.grpInterface.Controls.Add(this.chkDarkMode);
-            this.grpInterface.Location = new Point(6, 260);
+            this.grpInterface.Location = new Point(6, 200);
             this.grpInterface.Name = "grpInterface";
             this.grpInterface.Size = new Size(840, 80);
             this.grpInterface.TabIndex = 2;

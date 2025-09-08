@@ -97,6 +97,41 @@ public static class GamePathService
     }
 
     /// <summary>
+    /// Launches the Whisper Mountain Outbreak game through Steam
+    /// </summary>
+    /// <param name="steamAppId">Steam App ID for the game</param>
+    /// <returns>True if the game was launched successfully through Steam</returns>
+    public static bool LaunchGameThroughSteam(string? steamAppId)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(steamAppId))
+            {
+                Logger.Log(LogLevel.Error, $"Cannot launch game through Steam: Steam App ID not specified");
+                return false;
+            }
+
+            Logger.Log(LogLevel.Info, $"Launching game through Steam with App ID: {steamAppId}");
+            
+            var processStartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "steam",
+                Arguments = $"steam://run/{steamAppId}",
+                UseShellExecute = true
+            };
+
+            System.Diagnostics.Process.Start(processStartInfo);
+            Logger.Log(LogLevel.Info, $"Game launched successfully through Steam");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, $"Error launching game through Steam: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Launches the Whisper Mountain Outbreak game
     /// </summary>
     /// <param name="gameDataPath">Path to the game data directory</param>

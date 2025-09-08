@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using WMO.Core.Logging;
+using WMO.Core.Models.Enums;
 
 namespace WMO.Core.Models;
 
@@ -15,6 +16,9 @@ public class AppSettings : INotifyPropertyChanged
     private int _windowWidth = 800;
     private int _windowHeight = 600;
     private bool _rememberWindowSize = true;
+    
+    // Game version settings
+    private GameVersion _gameVersion = GameVersion.FullGame;
     
     // Legacy console settings properties
     private bool _allowStartupWithConflicts = false;
@@ -83,6 +87,26 @@ public class AppSettings : INotifyPropertyChanged
         get => _rememberWindowSize;
         set => SetProperty(ref _rememberWindowSize, value);
     }
+    
+    /// <summary>
+    /// Version of the game (Full Game or Friend's Pass)
+    /// </summary>
+    public GameVersion GameVersion
+    {
+        get => _gameVersion;
+        set => SetProperty(ref _gameVersion, value);
+    }
+    
+    /// <summary>
+    /// Steam Application ID based on game version
+    /// Full Game: 1953230, Friend's Pass: 2595010
+    /// </summary>
+    public string SteamAppId => GameVersion switch
+    {
+        GameVersion.FullGame => "1953230",      // Full version of Whisper Mountain Outbreak
+        GameVersion.FriendsPass => "2595010",  // Friend's Pass demo version
+        _ => "1953230" // Default to full game
+    };
     
     /// <summary>
     /// Whether to allow startup even when there are conflicts (legacy console setting)

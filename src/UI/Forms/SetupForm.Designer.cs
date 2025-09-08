@@ -13,6 +13,8 @@ namespace WMO.UI.Forms
         private TextBox txtGamePath;
         private Button btnBrowse;
         private Label lblPathStatus;
+        private Label lblGameVersion;
+        private ComboBox cmbGameVersion;
         private Label lblLogLevel;
         private ComboBox cmbLogLevel;
         private Button btnFinish;
@@ -45,6 +47,8 @@ namespace WMO.UI.Forms
             this.txtGamePath = new TextBox();
             this.btnBrowse = new Button();
             this.lblPathStatus = new Label();
+            this.lblGameVersion = new Label();
+            this.cmbGameVersion = new ComboBox();
             this.lblLogLevel = new Label();
             this.cmbLogLevel = new ComboBox();
             this.btnFinish = new Button();
@@ -113,32 +117,52 @@ namespace WMO.UI.Forms
             this.lblPathStatus.ForeColor = Color.Gray;
             
             // 
+            // lblGameVersion
+            // 
+            this.lblGameVersion.AutoSize = true;
+            this.lblGameVersion.Location = new Point(20, 210);
+            this.lblGameVersion.Name = "lblGameVersion";
+            this.lblGameVersion.Size = new Size(90, 15);
+            this.lblGameVersion.TabIndex = 6;
+            this.lblGameVersion.Text = "Game Version:";
+            
+            // 
+            // cmbGameVersion
+            // 
+            this.cmbGameVersion.DropDownStyle = ComboBoxStyle.DropDownList;
+            this.cmbGameVersion.Location = new Point(20, 230);
+            this.cmbGameVersion.Name = "cmbGameVersion";
+            this.cmbGameVersion.Size = new Size(200, 23);
+            this.cmbGameVersion.TabIndex = 7;
+
+            
+            // 
             // lblLogLevel
             // 
             this.lblLogLevel.AutoSize = true;
-            this.lblLogLevel.Location = new Point(20, 220);
+            this.lblLogLevel.Location = new Point(20, 270);
             this.lblLogLevel.Name = "lblLogLevel";
             this.lblLogLevel.Size = new Size(70, 15);
-            this.lblLogLevel.TabIndex = 6;
+            this.lblLogLevel.TabIndex = 8;
             this.lblLogLevel.Text = "Log Level:";
             
             // 
             // cmbLogLevel
             // 
             this.cmbLogLevel.DropDownStyle = ComboBoxStyle.DropDownList;
-            this.cmbLogLevel.Location = new Point(20, 240);
+            this.cmbLogLevel.Location = new Point(20, 290);
             this.cmbLogLevel.Name = "cmbLogLevel";
             this.cmbLogLevel.Size = new Size(150, 23);
-            this.cmbLogLevel.TabIndex = 7;
+            this.cmbLogLevel.TabIndex = 9;
             this.cmbLogLevel.SelectedIndexChanged += this.cmbLogLevel_SelectedIndexChanged;
             
             // 
             // btnFinish
             // 
-            this.btnFinish.Location = new Point(300, 320);
+            this.btnFinish.Location = new Point(300, 340);
             this.btnFinish.Name = "btnFinish";
             this.btnFinish.Size = new Size(75, 30);
-            this.btnFinish.TabIndex = 8;
+            this.btnFinish.TabIndex = 10;
             this.btnFinish.Text = "Finish";
             this.btnFinish.UseVisualStyleBackColor = true;
             this.btnFinish.Click += this.btnFinish_Click;
@@ -147,10 +171,10 @@ namespace WMO.UI.Forms
             // 
             // btnCancel
             // 
-            this.btnCancel.Location = new Point(380, 320);
+            this.btnCancel.Location = new Point(380, 340);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new Size(75, 30);
-            this.btnCancel.TabIndex = 9;
+            this.btnCancel.TabIndex = 11;
             this.btnCancel.Text = "Cancel";
             this.btnCancel.UseVisualStyleBackColor = true;
             this.btnCancel.Click += this.btnCancel_Click;
@@ -160,11 +184,13 @@ namespace WMO.UI.Forms
             // 
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(484, 371);
+            this.ClientSize = new Size(484, 400);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnFinish);
             this.Controls.Add(this.cmbLogLevel);
             this.Controls.Add(this.lblLogLevel);
+            this.Controls.Add(this.cmbGameVersion);
+            this.Controls.Add(this.lblGameVersion);
             this.Controls.Add(this.lblPathStatus);
             this.Controls.Add(this.btnBrowse);
             this.Controls.Add(this.txtGamePath);

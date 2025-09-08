@@ -4,6 +4,7 @@ using WMO.Core.Helpers;
 using WMO.Core.Patching;
 using WMO.UI.Forms;
 using WMO.Core.Models;
+using WMO.Core.Models.Enums;
 using WMO.UI.ViewModels;
 
 namespace WMO.UI;
@@ -64,12 +65,18 @@ public partial class MainForm : Form
             cmbLogLevel.Items.Add(level);
         }
         
+        // Populate game version combo box
+        cmbGameVersion.Items.Clear();
+        cmbGameVersion.Items.Add("Full Game");
+        cmbGameVersion.Items.Add("Friend's Pass");
+        
         // Bind settings to controls
         LoadSettingsToControls();
         
         // Set up event handlers for settings controls
         txtGamePath.TextChanged += TxtGamePath_TextChanged;
         btnBrowseGamePath.Click += BtnBrowseGamePath_Click;
+        cmbGameVersion.SelectedIndexChanged += CmbGameVersion_SelectedIndexChanged;
         cmbLogLevel.SelectedIndexChanged += CmbLogLevel_SelectedIndexChanged;
         chkRememberWindowSize.CheckedChanged += ChkRememberWindowSize_CheckedChanged;
         chkDarkMode.CheckedChanged += ChkDarkMode_CheckedChanged;
@@ -80,6 +87,7 @@ public partial class MainForm : Form
         var settings = SettingsService.Current;
         
         txtGamePath.Text = settings.GamePath ?? "";
+        cmbGameVersion.SelectedIndex = (int)settings.GameVersion;
         cmbLogLevel.SelectedItem = settings.LogLevel;
         chkRememberWindowSize.Checked = settings.RememberWindowSize;
         chkDarkMode.Checked = settings.DarkMode;
@@ -141,7 +149,8 @@ public partial class MainForm : Form
         }
         else if (GamePathService.ValidateGamePath(gamePath))
         {
-            lblGamePathStatus.Text = $"✓ Game path: {gamePath}";
+            var gameVersionText = settings.GameVersion == GameVersion.FullGame ? "Full Game" : "Friend's Pass";
+            lblGamePathStatus.Text = $"✓ {gameVersionText} (Steam ID: {settings.SteamAppId}) - {gamePath}";
             lblGamePathStatus.ForeColor = Color.Green;
             btnPatchGame.Enabled = !_isPatchingInProgress && _folderModService.AvailableMods.Any(m => m.IsEnabled);
             btnLaunchGame.Enabled = !_isPatchingInProgress;
@@ -251,11 +260,27 @@ public partial class MainForm : Form
         try
         {
             var settings = SettingsService.Current;
-            bool success = GamePathService.LaunchGame(settings.GamePath);
+            
+            // Try to launch through Steam first if Steam App ID is configured
+            bool success = false;
+            if (!string.IsNullOrEmpty(settings.SteamAppId))
+            {
+                success = GamePathService.LaunchGameThroughSteam(settings.SteamAppId);
+                if (!success)
+                {
+                    Logger.Log(LogLevel.Warning, $"Failed to launch through Steam, falling back to direct launch");
+                }
+            }
+            
+            // Fallback to direct launch if Steam launch failed or no Steam App ID configured
+            if (!success)
+            {
+                success = GamePathService.LaunchGame(settings.GamePath);
+            }
             
             if (!success)
             {
-                MessageBox.Show("Failed to launch the game. Check that the game path is correct and the executable exists.", 
+                MessageBox.Show("Failed to launch the game. Check that Steam is running and the game is installed, or that the game path is correct.", 
                     "Launch Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -341,6 +366,15 @@ public partial class MainForm : Form
         if (cmbLogLevel.SelectedItem is LogLevel level)
         {
             SettingsService.Current.LogLevel = level;
+        }
+    }
+
+    private void CmbGameVersion_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (cmbGameVersion.SelectedIndex >= 0)
+        {
+            SettingsService.Current.GameVersion = (GameVersion)cmbGameVersion.SelectedIndex;
+            UpdateGamePathStatus(); // Update the status to show new Steam App ID
         }
     }
 
