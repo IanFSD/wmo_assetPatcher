@@ -46,33 +46,44 @@ class DataClass
         try
         {
             connection.Open(); //open DB connection
+
             //Create table to hold all original file content of game
             //lastChanged is INT, # of seconds since 1970 as SQLite doesn't have native datetime
-            //Primary key is assetPath-name, the full filepath and name of the file must be unique
             String assetsTable = @"CREATE TABLE Assets(
-                name TEXT NOT NULL,
-                assetPath TEXT NOT NULL,
-                pathID INT NOT NULL DEFAULT 0,
-                classIDTypeNumber INT NOT NULL DEFAULT 0,
-                JSON TEXT NOT NULL DEFAULT a,
+                assetId INT PrimaryKey,
+                name TEXT NOT NULL DEFAULT a,
+                pathId INT NOT NULL DEFAULT 0,
+                classId INT NOT NULL DEFAULT 0,
+                source TEXT NOT NULL DEFAULT a,
                 lastChanged INT NOT NULL DEFAULT 0,
-                modded BOOLEAN NOT NULL DEFAULT false,
-                PRIMARY KEY (assetPath, name)
-                )";
+                modded BOOLEAN NOT NULL DEFAULT false
+                )"; //note that source is the JSON
             query(assetsTable);
 
-            //Create Table to hold all modded content added to game
+            //Create Table to hold meta data of mods as they are at higher level folders
             String moddedTable = @"CREATE TABLE Mods(
-                name TEXT NOT NULL,
-                assetPath TEXT NOT NULL,
-                pathID INT NOT NULL DEFAULT 0,
-                classIDTypeNumber INT NOT NULL DEFAULT 0,
-                JSON TEXT NOT NULL DEFAULT a,
-                lastChanged INT NOT NULL DEFAULT 0,
-                extensionFile TEXT NOT NULL DEFAULT a,
-                PRIMARY KEY (assetPath, name)
-                )";
+                modId INT PrimaryKey,
+                name TEXT NOT NULL DEFAULT a,
+                fileCount INT NOT NULL DEFAULT 0,
+                addsCustom BOOLEAN NOT NULL DEFAULT false,
+                fileList TEXT NOT NULL DEFAULT a
+                )"; //addsCustom checks if it is making additional files in the system, file list is just comma array of file names
             query(moddedTable);
+
+            //Create Table to hold individual file data of mods
+            String fileTable = @"CREATE TABLE Files(
+                fileId INT PrimaryKey,
+                name TEXT NOT NULL DEFAULT a,
+                modId INT NOT NULL,
+                replacedAssetId INT,
+                replacedAssetName TEXT,
+                pathId INT,
+                classId INT NOT NULL DEFAULT 0,
+                source TEXT NOT NULL DEFAULT a,
+                FOREIGN KEY (replacedAssetId) REFERENCES Assets(assetId),
+                FOREIGN KEY (modId) REFERENCES Mods(modId)
+                )"; //modID to connect to mod table key, and assetid/nametid/classid/source all ought to match reasonably to asset table
+            query(fileTable);
         }
         catch (Exception ex)
         {
@@ -90,7 +101,6 @@ class DataClass
     {
         connection.Close();
         Logger.Log(LogLevel.Error, $"=== WMO SQL Query Failed ===");
-        Logger.Log(LogLevel.Error, $"Code {ex.ErrorCode}");
         Logger.Log(LogLevel.Error, $"{ex.Message} \n {ex.StackTrace}");
         Logger.Log(LogLevel.Error, $"=== End of SQL Error ===");
     }
