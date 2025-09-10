@@ -1,4 +1,7 @@
+using AssetsTools.NET;
 using Microsoft.Data.Sqlite;
+using Mono.Cecil.Cil;
+using WMO.Helper;
 using WMO.Logging;
 
 namespace WMO.SQL;
@@ -94,6 +97,25 @@ class DataClass
         }
     }
 
+
+    public void insertAsset(AssetFileInfo assetFile, AssetBase assetFile2)
+    {
+        //assetId autoincrements
+        string name = assetFile2.AssetName;
+        long pathId = assetFile.PathId;
+        int classId = assetFile.TypeId;
+        //json assetFile.Read();
+        int lastChanged = DateTime.Now.Millisecond;
+
+        // assetId INT PrimaryKey,
+        //         name TEXT NOT NULL DEFAULT a,
+        //         pathId INT NOT NULL DEFAULT 0,
+        //         classId INT NOT NULL DEFAULT 0,
+        //         source TEXT NOT NULL DEFAULT a,
+        //         lastChanged INT NOT NULL DEFAULT 0,
+        //         modded BOOLEAN NOT NULL DEFAULT false
+    }
+
     /**
     * Generic Error Logging and closing taking in SQL exception data
     */
@@ -101,6 +123,7 @@ class DataClass
     {
         connection.Close();
         Logger.Log(LogLevel.Error, $"=== WMO SQL Query Failed ===");
+        Logger.Log(LogLevel.Error, $"Exception type: {ex.GetType().FullName}");
         Logger.Log(LogLevel.Error, $"{ex.Message} \n {ex.StackTrace}");
         Logger.Log(LogLevel.Error, $"=== End of SQL Error ===");
     }
