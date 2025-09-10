@@ -41,10 +41,14 @@ namespace WMO.UI.Forms
             // Load properties
             LoadAssetProperties();
             
-            // Try to load image preview if it's a texture
+            // Try to load image preview if it's a texture or sprite
             if (_asset.AssetType == UnityAssetType.Texture2D)
             {
                 LoadImagePreview();
+            }
+            else if (_asset.AssetType == UnityAssetType.Sprite)
+            {
+                LoadSpritePreview();
             }
             else
             {
@@ -308,6 +312,138 @@ namespace WMO.UI.Forms
             }
         }
 
+        private void LoadSpritePreview()
+        {
+            try
+            {
+                var manager = new AssetsManager();
+                
+                // Load class data
+                var classPackagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "lz4.tpk");
+                
+                if (File.Exists(classPackagePath))
+                {
+                    manager.LoadClassPackage(classPackagePath);
+                }
+
+                var fileInst = manager.LoadAssetsFile(_asset.FilePath, false);
+                var afile = fileInst.file;
+                manager.LoadClassDatabaseFromPackage(afile.Metadata.UnityVersion);
+                
+                var inf = afile.GetAssetInfo(_asset.PathId);
+                
+                if (inf != null)
+                {
+                    var baseField = manager.GetBaseField(fileInst, inf);
+                    
+                    if (baseField != null && baseField["m_Name"] != null)
+                    {
+                        // Get sprite properties
+                        var spriteName = baseField["m_Name"]?.AsString ?? "Unknown Sprite";
+                        
+                        // Get texture reference from sprite
+                        var texturePtr = baseField["m_Texture"];
+                        if (texturePtr != null)
+                        {
+                            var fileId = texturePtr["m_FileID"]?.AsInt ?? 0;
+                            var pathId = texturePtr["m_PathID"]?.AsLong ?? 0;
+                            
+                            // Get texture rectangle (UV coordinates)
+                            var rect = baseField["m_Rect"];
+                            var x = rect?["x"]?.AsFloat ?? 0f;
+                            var y = rect?["y"]?.AsFloat ?? 0f;
+                            var width = rect?["width"]?.AsFloat ?? 0f;
+                            var height = rect?["height"]?.AsFloat ?? 0f;
+                            
+                            // Try to load the referenced texture
+                            if (pathId != 0 && width > 0 && height > 0)
+                            {
+                                AssetsFileInstance textureFileInst = fileInst;
+                                
+                                // If fileId is not 0, we need to find the external file
+                                if (fileId != 0)
+                                {
+                                    // For now, try to find texture in the same file
+                                    // TODO: Handle external texture files
+                                    textureFileInst = fileInst;
+                                }
+                                
+                                var textureInf = textureFileInst.file.GetAssetInfo(pathId);
+                                if (textureInf != null)
+                                {
+                                    var textureBaseField = manager.GetBaseField(textureFileInst, textureInf);
+                                    if (textureBaseField != null)
+                                    {
+                                        var textureWidth = textureBaseField["m_Width"]?.AsInt ?? 0;
+                                        var textureHeight = textureBaseField["m_Height"]?.AsInt ?? 0;
+                                        var textureFormat = textureBaseField["m_TextureFormat"]?.AsInt ?? 0;
+                                        
+                                        // Decode the full texture first
+                                        var fullTexture = DecodeTexture2D(manager, textureFileInst, textureBaseField, textureWidth, textureHeight, textureFormat);
+                                        
+                                        if (fullTexture != null)
+                                        {
+                                            // Extract the sprite region from the full texture
+                                            var spriteImage = ExtractSpriteFromTexture(fullTexture, x, y, (int)width, (int)height);
+                                            
+                                            if (spriteImage != null)
+                                            {
+                                                var bitmap = ConvertImageSharpToBitmap(spriteImage);
+                                                picPreview.Image?.Dispose();
+                                                picPreview.Image = bitmap;
+                                                CenterImageInContainer(bitmap.Width, bitmap.Height);
+                                                spriteImage.Dispose();
+                                            }
+                                            else
+                                            {
+                                                ShowSpriteInfo(spriteName, (int)width, (int)height);
+                                            }
+                                            
+                                            fullTexture.Dispose();
+                                        }
+                                        else
+                                        {
+                                            ShowSpriteInfo(spriteName, (int)width, (int)height);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        ShowSpriteInfo(spriteName, (int)width, (int)height);
+                                    }
+                                }
+                                else
+                                {
+                                    ShowSpriteInfo(spriteName, (int)width, (int)height);
+                                }
+                            }
+                            else
+                            {
+                                ShowSpriteInfo(spriteName, (int)width, (int)height);
+                            }
+                        }
+                        else
+                        {
+                            ShowImagePlaceholder("Sprite has no texture reference");
+                        }
+                    }
+                    else
+                    {
+                        ShowImagePlaceholder("Invalid sprite data");
+                    }
+                }
+                else
+                {
+                    ShowImagePlaceholder("Sprite asset not found");
+                }
+                
+                manager.UnloadAll(true);
+            }
+            catch (Exception ex)
+            {
+                ShowImagePlaceholder($"Error loading sprite preview: {ex.Message}");
+            }
+        }
+
         private void ShowTextureInfo(int width, int height, int format)
         {
             var bitmap = new Bitmap(400, 300);
@@ -357,47 +493,32 @@ namespace WMO.UI.Forms
             {
                 // Get texture data using AssetsTools.NET.Texture following the wiki example
                 var textureFile = TextureFile.ReadTextureFile(baseField);
-                var textureData = textureFile.GetTextureData(fileInst);
                 
-                if (textureData == null || textureData.Length == 0)
+                // AssetsTools.NET.Texture automatically handles various formats including DXT1, DXT5, etc.
+                // and returns BGRA32 data that we can convert to RGBA32 for ImageSharp
+                var textureBgraData = textureFile.GetTextureData(fileInst);
+                
+                if (textureBgraData == null || textureBgraData.Length == 0)
                 {
                     return null;
                 }
 
-                // For now, let's try to handle simple formats like RGB24, RGBA32, etc.
-                // We can expand this to support more formats later
-                byte[]? rgba32Data = null;
-                
-                switch ((TextureFormat)format)
-                {
-                    case TextureFormat.RGB24:
-                        rgba32Data = ConvertRGB24ToRGBA32(textureData, width * height);
-                        break;
-                    case TextureFormat.RGBA32:
-                    case TextureFormat.ARGB32:
-                        rgba32Data = textureData; // Already in correct format
-                        break;
-                    default:
-                        // For unsupported formats, return null to fall back to texture info
-                        return null;
-                }
-                
-                if (rgba32Data == null || rgba32Data.Length == 0)
-                {
-                    return null;
-                }
+                // The data returned by GetTextureData is in BGRA32 format (4 bytes per pixel)
+                // We need to convert it to RGBA32 for ImageSharp
+                var textureRgbaData = ConvertBgraToRgba(textureBgraData);
 
                 // Create ImageSharp image from RGBA32 data
-                var image = Image.LoadPixelData<Rgba32>(rgba32Data, width, height);
+                var image = Image.LoadPixelData<Rgba32>(textureRgbaData, width, height);
                 
-                // Flip the image vertically (Unity textures are often flipped)
+                // Flip the image vertically (Unity textures are stored flipped)
                 image.Mutate(x => x.Flip(FlipMode.Vertical));
                 
                 return image;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Log the error but don't throw - we'll fall back to texture info
+                // Log the error for debugging
+                ConsoleService.WriteColoredMessage(WMO.Core.Logging.LogLevel.Warning, $"Failed to decode texture format {(TextureFormat)format}: {ex.Message}");
                 return null;
             }
         }
@@ -418,6 +539,22 @@ namespace WMO.UI.Forms
             }
             
             return rgba32Data;
+        }
+
+        private byte[] ConvertBgraToRgba(byte[] bgraData)
+        {
+            var rgbaData = new byte[bgraData.Length];
+            
+            // Convert BGRA to RGBA by swapping B and R channels
+            for (int i = 0; i < bgraData.Length; i += 4)
+            {
+                rgbaData[i] = bgraData[i + 2];     // R = B from BGRA
+                rgbaData[i + 1] = bgraData[i + 1]; // G = G from BGRA
+                rgbaData[i + 2] = bgraData[i];     // B = R from BGRA  
+                rgbaData[i + 3] = bgraData[i + 3]; // A = A from BGRA
+            }
+            
+            return rgbaData;
         }
 
         private void CenterImageInContainer(int imageWidth, int imageHeight)
@@ -514,6 +651,73 @@ namespace WMO.UI.Forms
                 
                 g.DrawString(text, font, brush, x, y);
                 brush.Dispose();
+            }
+            
+            picPreview.Image?.Dispose();
+            picPreview.Image = bitmap;
+            CenterImageInContainer(bitmap.Width, bitmap.Height);
+        }
+
+        private Image<Rgba32>? ExtractSpriteFromTexture(Image<Rgba32> fullTexture, float x, float y, int width, int height)
+        {
+            try
+            {
+                // Convert normalized coordinates to pixel coordinates
+                var pixelX = (int)x;
+                var pixelY = (int)y;
+                
+                // Ensure coordinates are within bounds
+                pixelX = Math.Max(0, Math.Min(pixelX, fullTexture.Width - width));
+                pixelY = Math.Max(0, Math.Min(pixelY, fullTexture.Height - height));
+                
+                // Ensure dimensions are valid
+                width = Math.Min(width, fullTexture.Width - pixelX);
+                height = Math.Min(height, fullTexture.Height - pixelY);
+                
+                if (width <= 0 || height <= 0)
+                {
+                    return null;
+                }
+                
+                // Extract the sprite region
+                var spriteImage = fullTexture.Clone(ctx => ctx.Crop(new SixLabors.ImageSharp.Rectangle(pixelX, pixelY, width, height)));
+                
+                return spriteImage;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private void ShowSpriteInfo(string spriteName, int width, int height)
+        {
+            var bitmap = new Bitmap(400, 300);
+            using (var g = Graphics.FromImage(bitmap))
+            {
+                g.Clear(SystemColor.Black);
+                
+                using (var font = new Font("Consolas", 12, FontStyle.Regular))
+                using (var brush = new SolidBrush(SystemColor.White))
+                {
+                    var lines = new[]
+                    {
+                        "Sprite Information",
+                        "",
+                        $"Name: {spriteName}",
+                        $"Size: {width} x {height}",
+                        "",
+                        "Preview not available",
+                        "(Texture decoding failed)"
+                    };
+                    
+                    float y = 20;
+                    foreach (var line in lines)
+                    {
+                        g.DrawString(line, font, brush, 10, y);
+                        y += 25;
+                    }
+                }
             }
             
             picPreview.Image?.Dispose();
