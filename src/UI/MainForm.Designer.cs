@@ -13,6 +13,7 @@ namespace WMO.UI
         
         private TabControl tabControl;
         private TabPage tabMods;
+        private TabPage tabAssets;
         private TabPage tabSettings;
         private GroupBox grpGeneral;
         private GroupBox grpLogging;
@@ -34,6 +35,24 @@ namespace WMO.UI
         private Button btnPatchGame;
         private Button btnLaunchGame;
         private Button btnRefreshMods;
+        
+        // Assets tab controls
+        private ListView lstAssets;
+        private Label lblAssetCount;
+        private Button btnScanAssets;
+        private ProgressBar progressAssets;
+        private Label lblScanProgress;
+        private GroupBox grpAssetFilters;
+        private CheckedListBox chklstAssetTypes;
+        private TextBox txtNameFilter;
+        private Label lblNameFilter;
+        private NumericUpDown numMinSize;
+        private NumericUpDown numMaxSize;
+        private Label lblMinSize;
+        private Label lblMaxSize;
+        private Label lblAssetStats;
+        
+
         
         // Status bar
         private StatusStrip statusStrip;
@@ -66,6 +85,7 @@ namespace WMO.UI
             
             this.tabControl = new TabControl();
             this.tabMods = new TabPage();
+            this.tabAssets = new TabPage();
             this.tabSettings = new TabPage();
             this.grpGeneral = new GroupBox();
             this.lblGamePath = new Label();
@@ -86,6 +106,22 @@ namespace WMO.UI
             this.btnPatchGame = new Button();
             this.btnLaunchGame = new Button();
             this.btnRefreshMods = new Button();
+            
+            this.lstAssets = new ListView();
+            this.lblAssetCount = new Label();
+            this.btnScanAssets = new Button();
+            this.progressAssets = new ProgressBar();
+            this.lblScanProgress = new Label();
+            this.grpAssetFilters = new GroupBox();
+            this.chklstAssetTypes = new CheckedListBox();
+            this.txtNameFilter = new TextBox();
+            this.lblNameFilter = new Label();
+            this.numMinSize = new NumericUpDown();
+            this.numMaxSize = new NumericUpDown();
+            this.lblMinSize = new Label();
+            this.lblMaxSize = new Label();
+
+            this.lblAssetStats = new Label();
             
             this.statusStrip = new StatusStrip();
             this.statusLabel = new ToolStripStatusLabel();
@@ -129,6 +165,7 @@ namespace WMO.UI
             // 
             this.tabControl.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             this.tabControl.Controls.Add(this.tabMods);
+            this.tabControl.Controls.Add(this.tabAssets);
             this.tabControl.Controls.Add(this.tabSettings);
             this.tabControl.Location = new Point(12, 27);
             this.tabControl.Name = "tabControl";
@@ -228,6 +265,181 @@ namespace WMO.UI
             this.btnLaunchGame.Text = "Launch Game";
             this.btnLaunchGame.UseVisualStyleBackColor = true;
             this.btnLaunchGame.Click += this.btnLaunchGame_Click;
+            
+            // 
+            // tabAssets
+            // 
+            this.tabAssets.Controls.Add(this.lstAssets);
+            this.tabAssets.Controls.Add(this.lblAssetCount);
+            this.tabAssets.Controls.Add(this.btnScanAssets);
+            this.tabAssets.Controls.Add(this.progressAssets);
+            this.tabAssets.Controls.Add(this.lblScanProgress);
+            this.tabAssets.Controls.Add(this.grpAssetFilters);
+            this.tabAssets.Controls.Add(this.lblAssetStats);
+            this.tabAssets.Location = new Point(4, 24);
+            this.tabAssets.Name = "tabAssets";
+            this.tabAssets.Padding = new Padding(3);
+            this.tabAssets.Size = new Size(852, 508);
+            this.tabAssets.TabIndex = 1;
+            this.tabAssets.Text = "Assets";
+            this.tabAssets.UseVisualStyleBackColor = true;
+            
+            // 
+            // lstAssets
+            // 
+            this.lstAssets.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            this.lstAssets.FullRowSelect = true;
+            this.lstAssets.GridLines = true;
+            this.lstAssets.Location = new Point(6, 35);
+            this.lstAssets.Name = "lstAssets";
+            this.lstAssets.Size = new Size(600, 380);
+            this.lstAssets.TabIndex = 1;
+            this.lstAssets.UseCompatibleStateImageBehavior = false;
+            this.lstAssets.View = View.Details;
+            
+            // Set up columns
+            this.lstAssets.Columns.Add("Name", 200);
+            this.lstAssets.Columns.Add("Type", 120);
+            this.lstAssets.Columns.Add("Size", 100);
+            this.lstAssets.Columns.Add("File", 180);
+            
+            // 
+            // lblAssetCount
+            // 
+            this.lblAssetCount.AutoSize = true;
+            this.lblAssetCount.Location = new Point(6, 10);
+            this.lblAssetCount.Name = "lblAssetCount";
+            this.lblAssetCount.Size = new Size(90, 15);
+            this.lblAssetCount.TabIndex = 0;
+            this.lblAssetCount.Text = "Assets found: 0";
+            
+            // 
+            // btnScanAssets
+            // 
+            this.btnScanAssets.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            this.btnScanAssets.Location = new Point(6, 450);
+            this.btnScanAssets.Name = "btnScanAssets";
+            this.btnScanAssets.Size = new Size(120, 35);
+            this.btnScanAssets.TabIndex = 2;
+            this.btnScanAssets.Text = "Scan Assets";
+            this.btnScanAssets.UseVisualStyleBackColor = true;
+            this.btnScanAssets.Click += this.btnScanAssets_Click;
+            
+            // 
+            // progressAssets
+            // 
+            this.progressAssets.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            this.progressAssets.Location = new Point(6, 425);
+            this.progressAssets.Name = "progressAssets";
+            this.progressAssets.Size = new Size(600, 20);
+            this.progressAssets.TabIndex = 3;
+            this.progressAssets.Visible = false;
+            
+            // 
+            // lblScanProgress
+            // 
+            this.lblScanProgress.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            this.lblScanProgress.Location = new Point(132, 450);
+            this.lblScanProgress.Name = "lblScanProgress";
+            this.lblScanProgress.Size = new Size(400, 35);
+            this.lblScanProgress.TabIndex = 4;
+            this.lblScanProgress.Text = "";
+            this.lblScanProgress.TextAlign = ContentAlignment.MiddleLeft;
+            
+            // 
+            // grpAssetFilters
+            // 
+            this.grpAssetFilters.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+            this.grpAssetFilters.Controls.Add(this.chklstAssetTypes);
+            this.grpAssetFilters.Controls.Add(this.lblNameFilter);
+            this.grpAssetFilters.Controls.Add(this.txtNameFilter);
+            this.grpAssetFilters.Controls.Add(this.lblMinSize);
+            this.grpAssetFilters.Controls.Add(this.numMinSize);
+            this.grpAssetFilters.Controls.Add(this.lblMaxSize);
+            this.grpAssetFilters.Controls.Add(this.numMaxSize);
+            this.grpAssetFilters.Location = new Point(615, 35);
+            this.grpAssetFilters.Name = "grpAssetFilters";
+            this.grpAssetFilters.Size = new Size(230, 380);
+            this.grpAssetFilters.TabIndex = 5;
+            this.grpAssetFilters.TabStop = false;
+            this.grpAssetFilters.Text = "Asset Filters";
+            
+            // 
+            // chklstAssetTypes
+            // 
+            this.chklstAssetTypes.CheckOnClick = true;
+            this.chklstAssetTypes.Location = new Point(10, 25);
+            this.chklstAssetTypes.Name = "chklstAssetTypes";
+            this.chklstAssetTypes.Size = new Size(210, 180);
+            this.chklstAssetTypes.TabIndex = 0;
+            
+            // 
+            // lblNameFilter
+            // 
+            this.lblNameFilter.AutoSize = true;
+            this.lblNameFilter.Location = new Point(10, 215);
+            this.lblNameFilter.Name = "lblNameFilter";
+            this.lblNameFilter.Size = new Size(73, 15);
+            this.lblNameFilter.TabIndex = 1;
+            this.lblNameFilter.Text = "Name Filter:";
+            
+            // 
+            // txtNameFilter
+            // 
+            this.txtNameFilter.Location = new Point(10, 235);
+            this.txtNameFilter.Name = "txtNameFilter";
+            this.txtNameFilter.PlaceholderText = "e.g. *.png, texture*";
+            this.txtNameFilter.Size = new Size(210, 23);
+            this.txtNameFilter.TabIndex = 2;
+            
+            // 
+            // lblMinSize
+            // 
+            this.lblMinSize.AutoSize = true;
+            this.lblMinSize.Location = new Point(10, 265);
+            this.lblMinSize.Name = "lblMinSize";
+            this.lblMinSize.Size = new Size(60, 15);
+            this.lblMinSize.TabIndex = 3;
+            this.lblMinSize.Text = "Min Size:";
+            
+            // 
+            // numMinSize
+            // 
+            this.numMinSize.Location = new Point(75, 263);
+            this.numMinSize.Maximum = new decimal(new int[] { 999999999, 0, 0, 0 });
+            this.numMinSize.Name = "numMinSize";
+            this.numMinSize.Size = new Size(80, 23);
+            this.numMinSize.TabIndex = 4;
+            
+            // 
+            // lblMaxSize
+            // 
+            this.lblMaxSize.AutoSize = true;
+            this.lblMaxSize.Location = new Point(10, 290);
+            this.lblMaxSize.Name = "lblMaxSize";
+            this.lblMaxSize.Size = new Size(63, 15);
+            this.lblMaxSize.TabIndex = 5;
+            this.lblMaxSize.Text = "Max Size:";
+            
+            // 
+            // numMaxSize
+            // 
+            this.numMaxSize.Location = new Point(75, 288);
+            this.numMaxSize.Maximum = new decimal(new int[] { 999999999, 0, 0, 0 });
+            this.numMaxSize.Name = "numMaxSize";
+            this.numMaxSize.Size = new Size(80, 23);
+            this.numMaxSize.TabIndex = 6;
+            
+            // 
+            // lblAssetStats
+            // 
+            this.lblAssetStats.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            this.lblAssetStats.Location = new Point(615, 10);
+            this.lblAssetStats.Name = "lblAssetStats";
+            this.lblAssetStats.Size = new Size(230, 20);
+            this.lblAssetStats.TabIndex = 6;
+            this.lblAssetStats.Text = "Total: 0 assets, 0 B";
+            this.lblAssetStats.TextAlign = ContentAlignment.TopRight;
             
             // 
             // tabSettings

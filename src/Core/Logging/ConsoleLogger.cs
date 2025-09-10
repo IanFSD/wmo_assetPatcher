@@ -39,12 +39,16 @@ public static class Logger {
         }
     }
 
-    private static void WriteToLogs(string content, bool timestamped = true) {
+    private static void WriteToLogs(string content, bool timestamped = true, LogLevel? logLevel = null) {
         var logMessage = timestamped ? $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {content}" : content;
         
         // Only output to console if console output is enabled
         if (SettingsService.Current.ConsoleOutput) {
-            Console.WriteLine(logMessage);
+            if (logLevel.HasValue) {
+                ConsoleService.WriteColoredMessage(logLevel.Value, logMessage);
+            } else {
+                Console.WriteLine(logMessage);
+            }
         }
 
         try {
@@ -71,7 +75,7 @@ public static class Logger {
         if (lvl > SettingsService.Current.LogLevel || SettingsService.Current.LogLevel == LogLevel.None)
             return;
 
-        WriteToLogs($"{lvl.ToString().ToUpper()}: {handler.ToString()}");
+        WriteToLogs($"{lvl.ToString().ToUpper()}: {handler.ToString()}", timestamped: true, logLevel: lvl);
     }
     
     public static List<string> GetAllMessages() {
@@ -94,7 +98,7 @@ public static class Logger {
     public static void WriteConsole(string message, bool addNewLine = true) {
         if (SettingsService.Current.ConsoleOutput) {
             if (addNewLine) {
-                Console.WriteLine(message);
+                ConsoleService.WriteColoredMessage(message);
             } else {
                 Console.Write(message);
             }

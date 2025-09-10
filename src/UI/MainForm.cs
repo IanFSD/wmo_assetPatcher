@@ -15,13 +15,16 @@ namespace WMO.UI;
 public partial class MainForm : Form
 {
     private readonly FolderModService _folderModService = new();
+    private readonly AssetScannerService _assetScannerService = new();
     private bool _isPatchingInProgress = false;
+    private CancellationTokenSource? _scanCancellationSource;
 
     public MainForm()
     {
         InitializeComponent();
         InitializeForm();
         LoadMods();
+        InitializeAssetScanner();
     }
 
     private void InitializeForm()
@@ -201,10 +204,14 @@ public partial class MainForm : Form
                 mod.Status = "Preparing...";
             }
             
-            // Show console output form  
+            // Allocate console window for patching output
             var settings = SettingsService.Current;
-            var consoleForm = new ConsoleOutputForm(settings.LogLevel, "Patching Game - Progress");
-            consoleForm.Show();
+            ConsoleService.AllocateConsole("WMO Asset Patcher - Patching Progress");
+            ConsoleService.WriteHeader("Starting Game Patching Process", ConsoleColor.Green);
+            
+            // Enable console output temporarily
+            var originalConsoleOutput = settings.ConsoleOutput;
+            settings.ConsoleOutput = true;
             
             // Run patching in background
             bool success = false;
@@ -227,10 +234,38 @@ public partial class MainForm : Form
                 mod.Status = success ? "Patched" : "Failed";
             }
             
-            // Update console form to show completion
-            consoleForm.SetOperationComplete(success);
+            // Restore original console setting
+            settings.ConsoleOutput = originalConsoleOutput;
             
-            // Show result message
+            // Show completion in console
+            if (success)
+            {
+                ConsoleService.WriteHeader("Patching Completed Successfully!", ConsoleColor.Green);
+                ConsoleService.WriteColoredMessage("All mods have been applied successfully. You can close this window.", ConsoleColor.Green);
+            }
+            else
+            {
+                ConsoleService.WriteHeader("Patching Failed!", ConsoleColor.Red);
+                ConsoleService.WriteColoredMessage("Some errors occurred during patching. Check the log messages above for details.", ConsoleColor.Red);
+            }
+            
+            ConsoleService.WriteColoredMessage("\nPress any key to close this window...", ConsoleColor.Yellow);
+            
+            // Wait for user input in a background task so UI remains responsive
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    Console.ReadKey(true);
+                    this.Invoke(() => ConsoleService.FreeConsoleWindow());
+                }
+                catch
+                {
+                    // Ignore errors if console is already closed
+                }
+            });
+            
+            // Show result message in main UI
             if (success)
             {
                 MessageBox.Show("Game patching completed successfully!", "Patching Complete", 
@@ -245,6 +280,24 @@ public partial class MainForm : Form
         catch (Exception ex)
         {
             Logger.Log(LogLevel.Error, $"Error during patching: {ex.Message}");
+            ConsoleService.WriteHeader("Critical Error!", ConsoleColor.Red);
+            ConsoleService.WriteColoredMessage($"A critical error occurred: {ex.Message}", ConsoleColor.Red);
+            ConsoleService.WriteColoredMessage("\nPress any key to close this window...", ConsoleColor.Yellow);
+            
+            // Wait for user input in error case too
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    Console.ReadKey(true);
+                    this.Invoke(() => ConsoleService.FreeConsoleWindow());
+                }
+                catch
+                {
+                    // Ignore errors if console is already closed
+                }
+            });
+            
             MessageBox.Show($"Error during patching: {ex.Message}", "Error", 
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
@@ -330,6 +383,9 @@ public partial class MainForm : Form
             settings.WindowWidth = this.Width;
             settings.WindowHeight = this.Height;
         }
+        
+        // Clean up console if it was allocated
+        ConsoleService.FreeConsoleWindow();
     }
 
     // Menu event handlers
@@ -386,11 +442,330 @@ public partial class MainForm : Form
     private void ChkDarkMode_CheckedChanged(object? sender, EventArgs e)
     {
         SettingsService.Current.DarkMode = chkDarkMode.Checked;
-        // TODO: Implement dark mode theme switching
-        if (chkDarkMode.Checked)
+        // TODO: Implement dark mode theme switching later
+    }
+
+    #region Asset Scanner
+
+    /// <summary>
+    /// Initialize the asset scanner service
+    /// </summary>
+    private void InitializeAssetScanner()
+    {
+        // Set up event handlers for asset scanner
+        _assetScannerService.ProgressChanged += AssetScanner_ProgressChanged;
+        _assetScannerService.ScanCompleted += AssetScanner_ScanCompleted;
+        
+        // Initialize asset type filter list
+        InitializeAssetTypeFilters();
+        
+        // Set up automatic filter event handlers
+        SetupAutoFilterEventHandlers();
+        
+        // Initialize UI state
+        UpdateAssetScannerUI();
+    }
+    
+    /// <summary>
+    /// Set up event handlers for automatic filtering
+    /// </summary>
+    private void SetupAutoFilterEventHandlers()
+    {
+        // Auto-filter when any control changes
+        chklstAssetTypes.ItemCheck += (s, e) => 
         {
-            MessageBox.Show("Dark mode is experimental and will be implemented in a future version.", 
-                "Dark Mode", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // Use BeginInvoke to delay until after the check state has changed
+            this.BeginInvoke(() => UpdateAssetsList());
+        };
+        
+        txtNameFilter.TextChanged += (s, e) => UpdateAssetsList();
+        numMinSize.ValueChanged += (s, e) => UpdateAssetsList();
+        numMaxSize.ValueChanged += (s, e) => UpdateAssetsList();
+        
+        // Set up asset double-click for preview
+        lstAssets.DoubleClick += LstAssets_DoubleClick;
+    }
+    
+
+
+    /// <summary>
+    /// Initialize the asset type filters checklist
+    /// </summary>
+    private void InitializeAssetTypeFilters()
+    {
+        chklstAssetTypes.Items.Clear();
+        
+        // Add moddable asset types first (checked by default)
+        var moddableTypes = UnityAssetTypeExtensions.GetModdableTypes();
+        foreach (var assetType in moddableTypes)
+        {
+            var displayName = assetType.GetDisplayName();
+            var index = chklstAssetTypes.Items.Add(displayName);
+            chklstAssetTypes.SetItemChecked(index, true);
+            chklstAssetTypes.Items[index] = new AssetTypeItem(assetType, displayName);
         }
+        
+        // Add other common asset types (unchecked by default)
+        var otherTypes = new[]
+        {
+            UnityAssetType.GameObject,
+            UnityAssetType.Transform,
+            UnityAssetType.Camera,
+            UnityAssetType.Light,
+            UnityAssetType.Rigidbody,
+            UnityAssetType.Collider,
+            UnityAssetType.MonoScript,
+            UnityAssetType.MonoBehaviour
+        };
+        
+        foreach (var assetType in otherTypes)
+        {
+            if (!moddableTypes.Contains(assetType))
+            {
+                var displayName = assetType.GetDisplayName();
+                var index = chklstAssetTypes.Items.Add(displayName);
+                chklstAssetTypes.Items[index] = new AssetTypeItem(assetType, displayName);
+            }
+        }
+        
+        // Start with all moddable types selected by default
+    }
+
+    /// <summary>
+    /// Update asset scanner UI state
+    /// </summary>
+    private void UpdateAssetScannerUI()
+    {
+        var isScanning = _assetScannerService.IsScanning;
+        var hasGamePath = !string.IsNullOrEmpty(SettingsService.Current.GamePath) && 
+                         GamePathService.ValidateGamePath(SettingsService.Current.GamePath);
+        
+        btnScanAssets.Enabled = !isScanning && hasGamePath;
+        btnScanAssets.Text = isScanning ? "Cancel Scan" : "Scan Assets";
+        
+        progressAssets.Visible = isScanning;
+        
+        if (!isScanning)
+        {
+            lblScanProgress.Text = "";
+            UpdateAssetsList();
+            UpdateAssetStatistics();
+        }
+    }
+
+    /// <summary>
+    /// Update the assets list display
+    /// </summary>
+    private void UpdateAssetsList()
+    {
+        lstAssets.Items.Clear();
+        
+        var filter = CreateCurrentFilter();
+        var filteredAssets = _assetScannerService.DiscoveredAssets
+            .Where(filter.PassesFilter)
+            .ToList();
+        
+        foreach (var asset in filteredAssets)
+        {
+            var item = new ListViewItem(asset.Name)
+            {
+                Tag = asset
+            };
+            
+            item.SubItems.Add(asset.AssetTypeName);
+            item.SubItems.Add(asset.FormattedSize);
+            item.SubItems.Add(asset.FileName);
+            
+            lstAssets.Items.Add(item);
+        }
+        
+        lblAssetCount.Text = $"Assets found: {filteredAssets.Count}";
+    }
+
+    /// <summary>
+    /// Update asset statistics display
+    /// </summary>
+    private void UpdateAssetStatistics()
+    {
+        var stats = _assetScannerService.GetStatistics();
+        lblAssetStats.Text = $"Total: {stats.TotalAssets} assets, {stats.FormattedTotalSize}";
+    }
+
+    /// <summary>
+    /// Create filter from current UI state
+    /// </summary>
+    private AssetScanFilter CreateCurrentFilter()
+    {
+        var filter = new AssetScanFilter();
+        
+        // Asset type filter - get from checklist
+        var selectedTypes = new HashSet<UnityAssetType>();
+        for (int i = 0; i < chklstAssetTypes.Items.Count; i++)
+        {
+            if (chklstAssetTypes.GetItemChecked(i) && chklstAssetTypes.Items[i] is AssetTypeItem item)
+            {
+                selectedTypes.Add(item.AssetType);
+            }
+        }
+        filter.IncludedTypes = selectedTypes;
+        
+        // Size filters
+        filter.MinSize = (long)numMinSize.Value;
+        filter.MaxSize = (long)numMaxSize.Value;
+        
+        // Name filter
+        filter.NameFilter = string.IsNullOrEmpty(txtNameFilter.Text) ? null : txtNameFilter.Text;
+        
+        // Other filters
+        filter.ModdableOnly = false; // We handle this above
+        filter.IncludeEmpty = true; // Let user decide with size filters
+        
+        return filter;
+    }
+
+    #endregion
+
+    #region Asset Scanner Event Handlers
+
+    private void btnScanAssets_Click(object sender, EventArgs e)
+    {
+        if (_assetScannerService.IsScanning)
+        {
+            // Cancel current scan
+            _scanCancellationSource?.Cancel();
+            return;
+        }
+        
+        var gamePath = SettingsService.Current.GamePath;
+        if (string.IsNullOrEmpty(gamePath) || !GamePathService.ValidateGamePath(gamePath))
+        {
+            MessageBox.Show("Please configure a valid game path in Settings before scanning assets.", 
+                "Game Path Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        
+        StartAssetScan();
+    }
+
+    private async void StartAssetScan()
+    {
+        try
+        {
+            _scanCancellationSource?.Cancel();
+            _scanCancellationSource = new CancellationTokenSource();
+            
+            UpdateAssetScannerUI();
+            
+            var filter = CreateScanFilter();
+            await _assetScannerService.ScanAssetsAsync(SettingsService.Current.GamePath!, filter, _scanCancellationSource.Token);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, $"Error starting asset scan: {ex.Message}");
+            MessageBox.Show($"Error starting asset scan: {ex.Message}", "Error", 
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            UpdateAssetScannerUI();
+        }
+    }
+
+    private AssetScanFilter CreateScanFilter()
+    {
+        // For scanning, we want to get all assets and filter in UI for better performance
+        var filter = new AssetScanFilter
+        {
+            IncludedTypes = Enum.GetValues<UnityAssetType>().ToHashSet(),
+            IncludeEmpty = true,
+            MinSize = 0,
+            MaxSize = 0
+        };
+        
+        return filter;
+    }
+
+    private void AssetScanner_ProgressChanged(object? sender, AssetScanProgressEventArgs e)
+    {
+        if (InvokeRequired)
+        {
+            Invoke(new Action(() => AssetScanner_ProgressChanged(sender, e)));
+            return;
+        }
+        
+        progressAssets.Value = e.PercentComplete;
+        lblScanProgress.Text = $"Scanning {e.CurrentFile}... ({e.ProcessedFiles}/{e.TotalFiles})";
+    }
+
+    private void AssetScanner_ScanCompleted(object? sender, AssetScanCompletedEventArgs e)
+    {
+        if (InvokeRequired)
+        {
+            Invoke(new Action(() => AssetScanner_ScanCompleted(sender, e)));
+            return;
+        }
+        
+        UpdateAssetScannerUI();
+        
+        if (e.Success)
+        {
+            Logger.Log(LogLevel.Info, $"Asset scan completed successfully. Found {e.Assets.Count} assets.");
+        }
+        else
+        {
+            Logger.Log(LogLevel.Error, $"Asset scan failed: {e.ErrorMessage}");
+            MessageBox.Show($"Asset scan failed: {e.ErrorMessage}", "Scan Error", 
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    /// <summary>
+    /// Handle asset double-click to open preview popup
+    /// </summary>
+    private void LstAssets_DoubleClick(object? sender, EventArgs e)
+    {
+        if (lstAssets.SelectedItems.Count > 0 && lstAssets.SelectedItems[0].Tag is DiscoveredAsset asset)
+        {
+            OpenAssetPreview(asset);
+        }
+    }
+    
+    /// <summary>
+    /// Open the asset preview popup window
+    /// </summary>
+    private void OpenAssetPreview(DiscoveredAsset asset)
+    {
+        try
+        {
+            using (var previewForm = new AssetPreviewForm(asset))
+            {
+                previewForm.ShowDialog(this);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, $"Error opening preview for {asset.Name}: {ex.Message}");
+            MessageBox.Show($"Could not open preview for {asset.Name}: {ex.Message}", 
+                          "Preview Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Helper class for asset type items in the checklist
+    /// </summary>
+    private class AssetTypeItem
+    {
+        public UnityAssetType AssetType { get; }
+        public string DisplayName { get; }
+        
+        public AssetTypeItem(UnityAssetType assetType, string displayName)
+        {
+            AssetType = assetType;
+            DisplayName = displayName;
+        }
+        
+        public override string ToString() => DisplayName;
     }
 }

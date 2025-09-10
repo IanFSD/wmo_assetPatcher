@@ -9,6 +9,7 @@
     <Nullable>enable</Nullable>
     <UserSecretsId>bf391776-b0ea-4ce2-9329-96fe36f7fb8b</UserSecretsId>
     <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <!-- Debug Configuration -->
@@ -38,6 +39,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4-beta1" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="Samboy063.LibCpp2IL" Version="2022.0.7.2" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.8" />
   </ItemGroup>
 
