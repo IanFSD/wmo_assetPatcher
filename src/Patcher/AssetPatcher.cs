@@ -4,11 +4,13 @@ using WMO.Logging;
 using AssetsTools.NET.Extra;
 using NAudio.Wave;
 using NAudio.Vorbis;
+using WMO.SQL;
 
 namespace WMO.AssetPatcher;
 
 public static class AssetPatcher
 {
+    private static DataClass WMODB = new DataClass(); //creates DB object for use in file
     public static bool TryPatch(string gamePath)
     {
         var modifiedFiles = new List<string>(); // Track all files that have been modified
@@ -16,19 +18,25 @@ public static class AssetPatcher
         {
             Logger.Log(LogLevel.Info, $"Starting patching process for game path: {gamePath}");
             Logger.Log(LogLevel.Debug, $"Verifying game directory exists...");
-            
+
             if (!Directory.Exists(gamePath))
             {
                 Logger.Log(LogLevel.Error, $"Game directory does not exist: {gamePath}");
                 return false;
             }
 
+            // Create DB
+                // TO DO: Enable DB / Patcher to somehow recognize this isn't needed. 
+                // Save game version and don't update if it isn't different?
+            WMODB.dropTables(); //drop existing DB to ensure clean start
+            WMODB.createTables();
+
             // Find assets files in the game directory
             Logger.Log(LogLevel.Info, $"Scanning game directory for assets files...");
             Logger.Log(LogLevel.Debug, $"Search parameters: recursive=true, path={gamePath}");
             var assetsFiles = AssetFileFinder.FindAssetsFiles(gamePath, recursive: true);
             Logger.Log(LogLevel.Info, $"Found {assetsFiles.Length} assets files to process");
-            
+
             if (assetsFiles.Length == 0)
             {
                 Logger.Log(LogLevel.Warning, $"No assets files found in game directory");
@@ -53,7 +61,7 @@ public static class AssetPatcher
                 {
                     Logger.Log(LogLevel.Error, $"  - {Path.GetFileName(lockedFile)}");
                 }
-                
+
                 Console.WriteLine($" Error: Some game files are currently in use by another process.");
                 Console.WriteLine($"Please close the following programs and try again:");
                 Console.WriteLine($"  - The game itself");
@@ -61,23 +69,23 @@ public static class AssetPatcher
                 Console.WriteLine($"  - Any other tools that might be accessing game files");
                 Console.WriteLine($"");
                 Console.WriteLine($"Files in use: {string.Join(", ", lockedFiles.Select(Path.GetFileName))}");
-                
+
                 return false;
             }
 
             bool patchedAny = false;
             int totalPatchedAssets = 0;
             int processedFiles = 0;
-            
+
             // Load mods data once before processing
             Logger.Log(LogLevel.Info, $"Loading mods data...");
             var modsCollection = ModsDataManager.GetModsCollection();
             Logger.Log(LogLevel.Info, $"Loaded {modsCollection.TotalAssetCount} assets from {modsCollection.ModPackages.Count} mod packages");
             Logger.Log(LogLevel.Debug, $"Audio assets: {modsCollection.GetAllAudioAssets().Count()}");
-            Logger.Log(LogLevel.Debug, $"Sprite assets: {modsCollection.GetAllSpriteAssets().Count()}"); 
+            Logger.Log(LogLevel.Debug, $"Sprite assets: {modsCollection.GetAllSpriteAssets().Count()}");
             Logger.Log(LogLevel.Debug, $"Texture assets: {modsCollection.GetAllTextureAssets().Count()}");
             Logger.Log(LogLevel.Debug, $"MonoBehaviour assets: {modsCollection.GetAllMonoBehaviourAssets().Count()}");
-            
+
             if (modsCollection.TotalAssetCount == 0)
             {
                 Logger.Log(LogLevel.Warning, $"No mod files found to process");
@@ -97,7 +105,7 @@ public static class AssetPatcher
 
                 processedFiles++;
                 var fileName = Path.GetFileName(assetsFile);
-                
+
                 try
                 {
                     // Create backup before processing
@@ -112,7 +120,7 @@ public static class AssetPatcher
                         Logger.Log(LogLevel.Error, $"Failed to create backup for: {fileName}");
                         return false; // Abort if backup fails
                     }
-                    
+
                     Logger.Log(LogLevel.Info, $"Processing file {processedFiles}/{assetsFiles.Length}: {fileName}");
                     Logger.Log(LogLevel.Debug, $"File path: {assetsFile}");
                     Logger.Log(LogLevel.Debug, $"File size: {new FileInfo(assetsFile).Length} bytes");
@@ -121,7 +129,7 @@ public static class AssetPatcher
                         $"Sprites: {modsCollection.GetAllSpriteAssets().Count()}, " +
                         $"Textures: {modsCollection.GetAllTextureAssets().Count()}, " +
                         $"MonoBehaviours: {modsCollection.GetAllMonoBehaviourAssets().Count()})");
-                    
+
                     var patchedCount = PatchAssetsInFile(assetsFile, modsCollection);
                     if (patchedCount > 0)
                     {
@@ -146,14 +154,14 @@ public static class AssetPatcher
                         Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
                         Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
                     }
-                    
+
                     Console.WriteLine($" Critical error while processing {fileName}: {ex.Message}");
                     Console.WriteLine($"Full error details have been logged.");
-                    
+
                     // Stop the entire process and recover backups
                     Logger.Log(LogLevel.Error, $"Stopping patching process due to critical error in {fileName}");
                     Logger.Log(LogLevel.Info, $"Attempting to recover all files from backups...");
-                    
+
                     if (BackupManager.RecoverBackups())
                     {
                         Logger.Log(LogLevel.Info, $"Successfully recovered all files from backups");
@@ -164,7 +172,7 @@ public static class AssetPatcher
                         Logger.Log(LogLevel.Error, $"Failed to recover some files from backups");
                         Console.WriteLine($"Warning: Some files may not have been restored properly. Check your game installation.");
                     }
-                    
+
                     ErrorHandler.Handle($"Critical error processing file {fileName}", ex);
                     return false;
                 }
@@ -172,17 +180,17 @@ public static class AssetPatcher
 
             Console.WriteLine();
             Logger.Log(LogLevel.Info, $"Patching process completed. Processed {processedFiles} files total.");
-            
+
             if (patchedAny)
             {
                 Logger.Log(LogLevel.Success, $"Patching completed successfully! Total assets patched: {totalPatchedAssets}");
                 Logger.Log(LogLevel.Info, $"Setting patched status to true");
-                
+
                 // Delete all backups since patching was successful
                 Logger.Log(LogLevel.Info, $"Cleaning up backup files...");
                 BackupManager.DeleteAllBackups();
                 Logger.Log(LogLevel.Debug, $"All backup files have been deleted");
-                
+
                 SettingsHolder.IsPatched = true;
                 return true;
             }
@@ -195,11 +203,11 @@ public static class AssetPatcher
                 Logger.Log(LogLevel.Debug, $"  - File path accessibility");
                 Console.WriteLine($"No assets were patched.");
                 Console.WriteLine($"Check if your file names match the game's asset names.");
-                
+
                 // Clean up backups since no files were actually modified
                 Logger.Log(LogLevel.Debug, $"Cleaning up unused backup files...");
                 BackupManager.DeleteAllBackups();
-                
+
                 return false;
             }
         }
@@ -208,17 +216,17 @@ public static class AssetPatcher
             Logger.Log(LogLevel.Error, $"Critical error during patching process: {ex.Message}");
             Logger.Log(LogLevel.Error, $"Exception type: {ex.GetType().FullName}");
             Logger.Log(LogLevel.Error, $"Stack trace: {ex.StackTrace}");
-            
+
             if (ex.InnerException != null)
             {
                 Logger.Log(LogLevel.Error, $"Inner exception: {ex.InnerException.Message}");
                 Logger.Log(LogLevel.Error, $"Inner exception type: {ex.InnerException.GetType().FullName}");
                 Logger.Log(LogLevel.Error, $"Inner exception stack trace: {ex.InnerException.StackTrace}");
             }
-            
+
             Console.WriteLine($" Critical error during patching: {ex.Message}");
             Console.WriteLine($"Full error details have been logged.");
-            
+
             // Attempt to recover from backups
             Logger.Log(LogLevel.Warning, $"Attempting to recover from backups due to error...");
             if (BackupManager.RecoverBackups())
@@ -231,7 +239,7 @@ public static class AssetPatcher
                 Logger.Log(LogLevel.Error, $"Failed to recover some files from backups");
                 Console.WriteLine($"Warning: Some files may not have been restored properly. Check your game installation.");
             }
-            
+
             ErrorHandler.Handle("Error during patching", ex);
             return false;
         }
@@ -269,24 +277,26 @@ public static class AssetPatcher
             Logger.Log(LogLevel.Debug, $"Unity version detected: {afile.Metadata.UnityVersion}");
             Logger.Log(LogLevel.Debug, $"Loading class database for Unity version...");
             manager.LoadClassDatabaseFromPackage(afile.Metadata.UnityVersion);
-            
+
             // Get all relevant assets from the file
             Logger.Log(LogLevel.Debug, $"Scanning for assets in {fileName}...");
             var audioAssets = afile.GetAssetsOfType((int)AssetClassID.AudioClip);
             var spriteAssets = afile.GetAssetsOfType((int)AssetClassID.Sprite);
             var textureAssets = afile.GetAssetsOfType((int)AssetClassID.Texture2D);
             var monoBehaviourAssets = afile.GetAssetsOfType((int)AssetClassID.MonoBehaviour);
-            
+
             Logger.Log(LogLevel.Debug, $"Found assets in {fileName}: " +
                 $"{audioAssets.Count} audio, {spriteAssets.Count} sprites, " +
                 $"{textureAssets.Count} textures, {monoBehaviourAssets.Count} MonoBehaviours");
-            
+
             var totalAssetsInFile = audioAssets.Count + spriteAssets.Count + textureAssets.Count + monoBehaviourAssets.Count;
             if (totalAssetsInFile == 0) 
             {
                 Logger.Log(LogLevel.Debug, $"No relevant assets found in {fileName}, skipping file");
                 return 0;
             }
+
+            WMODB.loadAllAssets(manager, fileInst); //load DB now that we know there are assets
 
             // Collect all replacers for this file
             var processedAssets = 0;
@@ -400,13 +410,13 @@ public static class AssetPatcher
                 {
                     var baseField = manager.GetBaseField(fileInst, assetInfo);
                     var name = baseField["m_Name"].AsString;
-                    
+
                     if (name == targetAssetName)
                     {
                         Logger.Log(LogLevel.Debug, $"Found matching audio asset! Path ID: {assetInfo.PathId}, Name: '{name}'");
-                        
+
                         var replacer = AudioAssetHandler.CreateReplacer(manager, fileInst, assetInfo, assetName, assetData);
-                        
+
                         if (replacer is AssetsReplacerWrapper wrapper)
                         {
                             assetInfo.Replacer = wrapper.GetAssetsReplacer();
