@@ -159,7 +159,7 @@ class DataClass
                 count++;
                 if (count > 10)
                 { //memory limit, need to submit the query and then start from 0 rows
-                    Logger.Log(LogLevel.Info, $"===DUMPING===");
+                    //Logger.Log(LogLevel.Info, $"===DUMPING===");
                     insertAssetQuery = insertAssetQuery.Substring(0, insertAssetQuery.Length - 1);
                     query(insertAssetQuery);
                     count = 0;
