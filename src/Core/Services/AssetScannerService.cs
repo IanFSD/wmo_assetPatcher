@@ -138,7 +138,7 @@ public class AssetScannerService
         var assetFiles = new List<string>();
         
         // Unity asset file extensions that we need to scan
-        var extensions = new[] { "*.assets", "*.resource", "*.ress" };
+        var extensions = new[] { "*.assets"};
         
         if (!Directory.Exists(gamePath))
         {
