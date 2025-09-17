@@ -3,7 +3,7 @@ using WMO.Core.Models.Enums;
 namespace WMO.Core.Models;
 
 /// <summary>
-/// Represents an individual mod file within a folder mod (pure business model)
+/// Represents an individual mod file within a folder mod
 /// </summary>
 public class ModFile
 {
@@ -29,10 +29,10 @@ public class ModFile
     /// </summary>
     public string TypeDescription => Type switch
     {
-        ModType.Audio => "Audio Replacement",
-        ModType.Sprite => "Sprite Replacement", 
-        ModType.Texture => "Texture Replacement",
-        _ => "Unknown Type"
+        ModType.Audio => "Audio",
+        ModType.Sprite => "Sprite", 
+        ModType.Texture => "Texture",
+        _ => "Unknown"
     };
     
     /// <summary>

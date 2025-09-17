@@ -24,13 +24,11 @@ public partial class ConsoleOutputForm : Form
         this.Size = new Size(800, 600);
         this.MinimumSize = new Size(600, 400);
         
-        // Set up timer for updating UI
         _updateTimer = new System.Windows.Forms.Timer();
         _updateTimer.Interval = 100; // Update every 100ms
         _updateTimer.Tick += UpdateTimer_Tick;
         _updateTimer.Start();
         
-        // Subscribe to logger events
         Logger.LogReceived += OnLogMessageReceived;
         
         btnClose.Enabled = false;
@@ -38,7 +36,6 @@ public partial class ConsoleOutputForm : Form
 
     private void OnLogMessageReceived(object? sender, string logMessage)
     {
-        // Parse log level from the message format: [timestamp] LEVEL: message
         var level = LogLevel.Info; // default
         
         try
@@ -62,7 +59,6 @@ public partial class ConsoleOutputForm : Form
             // If parsing fails, use default level
         }
 
-        // Only show messages at or above the configured log level
         if (level >= _logLevel)
         {
             _messageQueue.Enqueue(logMessage);
@@ -71,7 +67,6 @@ public partial class ConsoleOutputForm : Form
 
     private void UpdateTimer_Tick(object? sender, EventArgs e)
     {
-        // Process queued messages
         var messages = new List<string>();
         while (_messageQueue.TryDequeue(out var message))
         {
@@ -80,7 +75,6 @@ public partial class ConsoleOutputForm : Form
 
         if (messages.Count > 0)
         {
-            // Append messages to the text box
             if (txtOutput.InvokeRequired)
             {
                 txtOutput.Invoke(new Action(() =>
@@ -90,7 +84,6 @@ public partial class ConsoleOutputForm : Form
                         txtOutput.AppendText(msg + Environment.NewLine);
                     }
                     
-                    // Auto-scroll to bottom
                     txtOutput.SelectionStart = txtOutput.Text.Length;
                     txtOutput.ScrollToCaret();
                 }));
@@ -102,19 +95,16 @@ public partial class ConsoleOutputForm : Form
                     txtOutput.AppendText(msg + Environment.NewLine);
                 }
                 
-                // Auto-scroll to bottom
                 txtOutput.SelectionStart = txtOutput.Text.Length;
                 txtOutput.ScrollToCaret();
             }
         }
 
-        // Check if operation is complete and enable close button
         if (_isOperationComplete && !btnClose.Enabled)
         {
             btnClose.Enabled = true;
             btnClose.Text = _operationResult ? "Close" : "Close";
             
-            // Update title to show result
             this.Text += _operationResult ? " - Completed Successfully" : " - Failed";
         }
     }
@@ -137,11 +127,9 @@ public partial class ConsoleOutputForm : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        // Clean up
         _updateTimer?.Stop();
         _updateTimer?.Dispose();
         
-        // Unsubscribe from logger events
         Logger.LogReceived -= OnLogMessageReceived;
         
         base.OnFormClosing(e);

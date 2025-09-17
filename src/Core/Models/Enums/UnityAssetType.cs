@@ -4,7 +4,6 @@ namespace WMO.Core.Models.Enums;
 
 /// <summary>
 /// Common Unity asset class types that can be scanned and filtered
-/// Based on UABEA ClassTypes and AssetsTools.NET AssetClassID
 /// </summary>
 public enum UnityAssetType
 {
@@ -111,9 +110,6 @@ public enum UnityAssetType
     // UI Elements
     [AssetTypeInfo("RectTransform", AssetClassID.RectTransform)]
     RectTransform = 224,
-    
-    // Note: UI components like Button, Image, Text are typically MonoBehaviour scripts
-    // and should be detected as MonoBehaviour type
     
     // Terrain and Environment
     [AssetTypeInfo("Terrain", AssetClassID.Terrain)]

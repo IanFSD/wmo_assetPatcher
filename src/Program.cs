@@ -122,7 +122,7 @@ internal static class Program
         Logger.WriteConsole("");
 
         var modsCollection = ModsDataManager.GetModsCollection();
-        if (modsCollection.TotalCount == 0)
+        if (modsCollection.TotalAssetCount == 0)
         {
             Logger.WriteConsole(" No mod files found!");
             Logger.LogWarning("No mod files found in mods directory");
@@ -148,24 +148,8 @@ internal static class Program
             return;
         }
 
-        Logger.WriteConsole($" Found {modsCollection.TotalCount} mod files:");
-        Logger.LogInfo($"Found {modsCollection.TotalCount} mod files: {modsCollection.AudioMods.Count} audio, {modsCollection.SpriteMods.Count} sprites");
-        if (modsCollection.AudioMods.Count > 0)
-        {
-            Logger.WriteConsole("   Audio mods:");
-            foreach (var mod in modsCollection.AudioMods)
-            {
-                Logger.WriteConsole($"      • {mod.AssetName}");
-            }
-        }
-        if (modsCollection.SpriteMods.Count > 0)
-        {
-            Logger.WriteConsole("   Sprite mods:");
-            foreach (var mod in modsCollection.SpriteMods)
-            {
-                Logger.WriteConsole($"      • {mod.AssetName}");
-            }
-        }
+        Logger.WriteConsole($" Found {modsCollection.TotalAssetCount} mod files:");
+        Logger.LogInfo($"Found {modsCollection.TotalAssetCount} mod files:");
         Logger.WriteConsole("");
 
         // Get game path - different behavior for debug vs release

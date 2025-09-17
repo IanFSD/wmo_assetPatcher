@@ -14,23 +14,22 @@ public class ModItem
     public bool IsSelected { get; set; } = true;
     public string DisplayName => $"{Name} ({Type})";
     
-    public ModItem() { }
     
-    public ModItem(AudioMod audioMod)
+    public ModItem(AudioAsset audioMod)
     {
         Name = audioMod.AssetName;
         FilePath = audioMod.FilePath;
         Type = ModType.Audio;
     }
     
-    public ModItem(SpriteMod spriteMod)
+    public ModItem(SpriteAsset spriteMod)
     {
         Name = spriteMod.AssetName;
         FilePath = spriteMod.FilePath;
         Type = ModType.Sprite;
     }
     
-    public ModItem(TextureMod textureMod)
+    public ModItem(TextureAsset textureMod)
     {
         Name = textureMod.AssetName;
         FilePath = textureMod.FilePath;

@@ -73,8 +73,6 @@ namespace WMO.UI.Forms
                     "",
                     "BaseField Properties:"
                 };
-
-                // Load and scan all baseField properties like in the patching system
                 var baseFieldProperties = LoadBaseFieldProperties();
                 if (baseFieldProperties.Count > 0)
                 {
@@ -117,7 +115,6 @@ namespace WMO.UI.Forms
                     var baseField = manager.GetBaseField(fileInst, assetInfo);
                     if (baseField != null)
                     {
-                        // Recursively scan all fields like in the patching system
                         ScanBaseFieldRecursive(baseField, properties, 0);
                     }
                 }
@@ -140,7 +137,6 @@ namespace WMO.UI.Forms
             
             try
             {
-                // Handle different field types
                 switch (field.TypeName)
                 {
                     case "string":
@@ -172,7 +168,6 @@ namespace WMO.UI.Forms
                         
                     case "Array":
                         properties.Add($"{indent}{field.FieldName}: Array[{field.Children.Count}]");
-                        // Show all array elements
                         for (int i = 0; i < field.Children.Count; i++)
                         {
                             var childIndent = new string(' ', (indentLevel + 1) * 2);
@@ -197,12 +192,10 @@ namespace WMO.UI.Forms
                         break;
                         
                     default:
-                        // For complex types, show the type name and recurse into children
                         if (field.Children?.Count > 0)
                         {
                             properties.Add($"{indent}{field.FieldName}: {field.TypeName}");
                             
-                            // Recurse into all children
                             for (int i = 0; i < field.Children.Count; i++)
                             {
                                 ScanBaseFieldRecursive(field.Children[i], properties, indentLevel + 1, maxDepth);
@@ -210,7 +203,6 @@ namespace WMO.UI.Forms
                         }
                         else
                         {
-                            // Try to get a basic value
                             try
                             {
                                 var value = field.AsString;

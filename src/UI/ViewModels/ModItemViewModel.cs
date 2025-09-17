@@ -42,21 +42,21 @@ public class ModItemViewModel : INotifyPropertyChanged
     
     public ModItemViewModel() { }
     
-    public ModItemViewModel(AudioMod audioMod)
+    public ModItemViewModel(AudioAsset audioMod)
     {
         Name = audioMod.AssetName;
         FilePath = audioMod.FilePath;
         Type = ModType.Audio;
     }
     
-    public ModItemViewModel(SpriteMod spriteMod)
+    public ModItemViewModel(SpriteAsset spriteMod)
     {
         Name = spriteMod.AssetName;
         FilePath = spriteMod.FilePath;
         Type = ModType.Sprite;
     }
     
-    public ModItemViewModel(TextureMod textureMod)
+    public ModItemViewModel(TextureAsset textureMod)
     {
         Name = textureMod.AssetName;
         FilePath = textureMod.FilePath;

@@ -52,7 +52,7 @@ public class ModInfo : INotifyPropertyChanged
         ModType.Audio => "Audio",
         ModType.Sprite => "Sprite", 
         ModType.Texture => "Texture",
-        _ => "❓ Unknown"
+        _ => "Unknown"
     };
     
     public event PropertyChangedEventHandler? PropertyChanged;
