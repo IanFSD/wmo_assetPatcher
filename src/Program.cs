@@ -24,10 +24,8 @@ internal static class Program
         
         try
         {
-            // Configure console output based on mode
             SettingsService.Current.ConsoleOutput = consoleMode;
             
-            // Configure logging level based on build configuration or debug flag BEFORE any logging
 #if DEBUG
             SettingsService.Current.LogLevel = LogLevel.Debug; // Show debug logs in debug mode
 #else
@@ -36,17 +34,14 @@ internal static class Program
             
             Logger.Log(LogLevel.Info, $"=== WMO Asset Patcher Started ===");
 
-            // Clean up any outdated backup data from previous runs
             BackupManager.CleanupOutdatedBackups();
 
             if (consoleMode)
             {
-                // Run in console mode (original behavior)
                 RunConsoleMode(debugMode);
             }
             else
             {
-                // Run in UI mode
                 RunUIMode();
             }
         }
@@ -84,27 +79,75 @@ internal static class Program
     {
         Logger.Log(LogLevel.Info, $"Starting UI mode");
         
-        // Check if this is the first run (check if GamePath is null/empty)
-        if (string.IsNullOrEmpty(SettingsService.Current.GamePath))
+        bool isFirstRun = string.IsNullOrEmpty(SettingsService.Current.GamePath);
+        
+        if (isFirstRun)
         {
             Logger.Log(LogLevel.Info, $"First run detected, showing setup form");
-            
             using var setupForm = new SetupForm();
             var result = setupForm.ShowDialog();
-            
             if (result != DialogResult.OK)
             {
                 Logger.Log(LogLevel.Info, $"Setup cancelled by user");
                 return;
             }
-            
             Logger.Log(LogLevel.Info, $"Setup completed successfully");
         }
         
-        Logger.Log(LogLevel.Info, $"Starting main application window");
+        string gameRoot = SettingsService.Current.GamePath!;
+        bool bepinexCurrentlyInstalled = BepInExInstaller.IsInstalled(gameRoot);
         
-        // Run the main form
+        if (SettingsService.Current.BepInExInstalled != bepinexCurrentlyInstalled)
+        {
+            SettingsService.Current.BepInExInstalled = bepinexCurrentlyInstalled;
+        }
+        
+        if (!bepinexCurrentlyInstalled)
+        {
+            Logger.Log(LogLevel.Info, $"BepInEx not detected, starting installation process");
+            if (!InstallBepInEx(gameRoot))
+            {
+                return;
+            }
+            
+            SettingsService.Current.BepInExInstalled = true;
+        }
+        else
+        {
+            Logger.Log(LogLevel.Info, $"BepInEx installation detected, proceeding to main application");
+        }
+
+        Logger.Log(LogLevel.Info, $"Starting main application window");
         Application.Run(new MainForm());
+    }
+    
+    private static bool InstallBepInEx(string gameRoot)
+    {
+        try
+        {
+            string bepinexZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "BepInEx.zip");
+            Logger.Log(LogLevel.Info, $"Beginning BepInEx installation to {gameRoot}");
+            
+            if (!BepInExInstaller.InstallAndValidate(gameRoot, bepinexZip, 20000, out var errorType, out var errorMessage))
+            {
+                string userMessage = BepInExInstaller.GetUserFriendlyErrorMessage(errorType, errorMessage);
+                MessageBox.Show(userMessage, "BepInEx Installation Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Logger.Log(LogLevel.Fatal, $"BepInEx install failed: {errorMessage}");
+                Environment.Exit(1);
+                return false;
+            }
+            
+            MessageBox.Show("BepInEx has been installed successfully!", "BepInEx Installed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Logger.Log(LogLevel.Info, $"BepInEx installation completed successfully");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Fatal, $"Fatal error during BepInEx setup: {ex.Message}");
+            MessageBox.Show($"Fatal error during BepInEx setup: {ex.Message}", "Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Environment.Exit(1);
+            return false;
+        }
     }
 
     private static void RunConsoleMode(bool debugMode)
@@ -152,11 +195,9 @@ internal static class Program
         Logger.LogInfo($"Found {modsCollection.TotalAssetCount} mod files:");
         Logger.WriteConsole("");
 
-        // Get game path - different behavior for debug vs release
         string gamePath;
         
 #if DEBUG
-        // In debug mode, always use default path and skip user input
         Logger.WriteConsole("DEBUG MODE: Using default game path and skipping user input.");
         Logger.LogDebug("Using default game path in debug mode");
         gamePath = SettingsService.DEFAULT_GAME_PATH;
@@ -165,7 +206,6 @@ internal static class Program
 #else
         if (debugMode)
         {
-            // Release mode with --debug flag: behave like debug mode
             Logger.WriteConsole("DEBUG MODE: Using default game path and skipping user input.");
             Logger.LogDebug("Using default game path in debug mode");
             gamePath = SettingsService.DEFAULT_GAME_PATH;
@@ -174,7 +214,6 @@ internal static class Program
         }
         else
         {
-            // Normal release mode: always ask user about path
             gamePath = GetGamePath();
             if (string.IsNullOrEmpty(gamePath))
             {
@@ -191,7 +230,6 @@ internal static class Program
         }
 #endif
 
-        // Verify the path exists and contains the game
         if (!VerifyGamePath(gamePath))
         {
             Logger.WriteConsole(" The specified path doesn't appear to contain Whisper Mountain Outbreak.");
@@ -205,25 +243,21 @@ internal static class Program
 #endif
             return;
         }
-        // Generate asset list for user reference
         Logger.WriteConsole("");
 
 #if DEBUG
-        // In debug mode, skip confirmation and start patching directly
         Logger.WriteConsole("DEBUG MODE: Starting patching process automatically...");
         Logger.LogDebug("Starting patching process automatically in debug mode");
         Logger.WriteConsole("");
 #else      
         if (debugMode)
         {
-            // Release mode with --debug flag: behave like debug mode
             Logger.WriteConsole("DEBUG MODE: Starting patching process automatically...");
             Logger.LogDebug("Starting patching process automatically in debug mode");
             Logger.WriteConsole("");
         }
         else
         {
-            // Normal release mode: ask for confirmation
             Logger.WriteConsole("Ready to start patching. This will modify game files.");
             Logger.WriteConsole("Continue? (Y/N): ", false);
             
@@ -245,7 +279,6 @@ internal static class Program
         }
 #endif
 
-        // Start patching process
         Logger.WriteConsole("Starting patching process...");
         Logger.LogInfo("Starting patching process");
         Logger.WriteConsole("");

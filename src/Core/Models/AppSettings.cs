@@ -25,6 +25,9 @@ public class AppSettings : INotifyPropertyChanged
     private bool _isPatched = false;
     private bool _consoleOutput = true;
     
+    // BepInEx installation status
+    private bool _bepInExInstalled = false;
+    
     /// <summary>
     /// Path to the game installation directory
     /// </summary>
@@ -133,6 +136,15 @@ public class AppSettings : INotifyPropertyChanged
     {
         get => _consoleOutput;
         set => SetProperty(ref _consoleOutput, value);
+    }
+    
+    /// <summary>
+    /// Whether BepInEx is installed in the game directory
+    /// </summary>
+    public bool BepInExInstalled
+    {
+        get => _bepInExInstalled;
+        set => SetProperty(ref _bepInExInstalled, value);
     }
     
     public event PropertyChangedEventHandler? PropertyChanged;
