@@ -314,33 +314,33 @@ public partial class MainForm : Form
         {
             var settings = SettingsService.Current;
             
-            // Try to launch through Steam first if Steam App ID is configured
-            bool success = false;
-            if (!string.IsNullOrEmpty(settings.SteamAppId))
+            // Launch through Steam using the correct Steam App ID based on game version
+            if (string.IsNullOrEmpty(settings.SteamAppId))
             {
-                success = GamePathService.LaunchGameThroughSteam(settings.SteamAppId);
-                if (!success)
-                {
-                    Logger.Log(LogLevel.Warning, $"Failed to launch through Steam, falling back to direct launch");
-                }
-            }
-            
-            // Fallback to direct launch if Steam launch failed or no Steam App ID configured
-            if (!success)
-            {
-                success = GamePathService.LaunchGame(settings.GamePath);
-            }
-            
-            if (!success)
-            {
-                MessageBox.Show("Failed to launch the game. Check that Steam is running and the game is installed, or that the game path is correct.", 
+                MessageBox.Show("Steam App ID not configured. Please check your game version settings.", 
                     "Launch Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            
+            Logger.Log(LogLevel.Info, $"Launching game through Steam (App ID: {settings.SteamAppId}, Version: {settings.GameVersion})");
+            bool success = GamePathService.LaunchGameThroughSteam(settings.SteamAppId);
+            
+            if (!success)
+            {
+                MessageBox.Show($"Failed to launch the game through Steam.\n\n" +
+                               $"Game Version: {settings.GameVersion}\n" +
+                               $"Steam App ID: {settings.SteamAppId}\n\n" +
+                               $"Please ensure:\n" +
+                               $"• Steam is running\n" +
+                               $"• The game is installed in your Steam library\n" +
+                               $"• The correct game version is selected in Settings", 
+                    "Steam Launch Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
             Logger.Log(LogLevel.Error, $"Error launching game: {ex.Message}");
-            MessageBox.Show($"Error launching game: {ex.Message}", "Error", 
+            MessageBox.Show($"Error launching game through Steam: {ex.Message}", "Error", 
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }

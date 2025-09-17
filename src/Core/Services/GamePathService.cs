@@ -85,7 +85,6 @@ public static class GamePathService
             var gameDirectory = Directory.GetParent(gameDataPath)?.FullName;
             if (string.IsNullOrEmpty(gameDirectory))
                 return null;
-
             var exePath = Path.Combine(gameDirectory, "Whisper Mountain Outbreak.exe");
             return File.Exists(exePath) ? exePath : null;
         }
@@ -110,24 +109,121 @@ public static class GamePathService
                 Logger.Log(LogLevel.Error, $"Cannot launch game through Steam: Steam App ID not specified");
                 return false;
             }
-
             Logger.Log(LogLevel.Info, $"Launching game through Steam with App ID: {steamAppId}");
             
-            var processStartInfo = new System.Diagnostics.ProcessStartInfo
+            try
             {
-                FileName = "steam",
-                Arguments = $"steam://run/{steamAppId}",
-                UseShellExecute = true
-            };
+                var steamUrlStartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = $"steam://run/{steamAppId}",
+                    UseShellExecute = true
+                };
 
-            System.Diagnostics.Process.Start(processStartInfo);
-            Logger.Log(LogLevel.Info, $"Game launched successfully through Steam");
-            return true;
+                System.Diagnostics.Process.Start(steamUrlStartInfo);
+                Logger.Log(LogLevel.Info, $"Game launched successfully through Steam protocol");
+                return true;
+            }
+            catch (Exception protocolEx)
+            {
+                Logger.Log(LogLevel.Warning, $"Steam protocol launch failed: {protocolEx.Message}, trying Steam executable");
+            }
+
+            // Fallback: Try to find Steam executable and launch it
+            string? steamPath = FindSteamExecutable();
+            if (!string.IsNullOrEmpty(steamPath))
+            {
+                try
+                {
+                    var steamExeStartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = steamPath,
+                        Arguments = $"-applaunch {steamAppId}",
+                        UseShellExecute = true
+                    };
+
+                    System.Diagnostics.Process.Start(steamExeStartInfo);
+                    Logger.Log(LogLevel.Info, $"Game launched successfully through Steam executable");
+                    return true;
+                }
+                catch (Exception steamExeEx)
+                {
+                    Logger.Log(LogLevel.Warning, $"Steam executable launch failed: {steamExeEx.Message}, falling back to direct game launch");
+                }
+            }
+            else
+            {
+                Logger.Log(LogLevel.Warning, $"Could not locate Steam installation, falling back to direct game launch");
+            }
+            
+            // Final fallback: Launch game directly
+            Logger.Log(LogLevel.Info, $"Attempting direct game launch as Steam fallback");
+            var gameSettings = SettingsService.Current;
+            bool directLaunchSuccess = LaunchGame(gameSettings.GamePath);
+            
+            if (directLaunchSuccess)
+            {
+                Logger.Log(LogLevel.Info, $"Game launched successfully via direct execution (Steam fallback)");
+                return true;
+            }
+            else
+            {
+                Logger.Log(LogLevel.Error, $"All launch methods failed - Steam and direct game launch both failed");
+                return false;
+            }
         }
         catch (Exception ex)
         {
             Logger.Log(LogLevel.Error, $"Error launching game through Steam: {ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to find the Steam executable path
+    /// </summary>
+    /// <returns>Path to Steam.exe if found, null otherwise</returns>
+    private static string? FindSteamExecutable()
+    {
+        try
+        {
+            // Common Steam installation paths
+            var steamPaths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam", "Steam.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Steam", "Steam.exe")
+            };
+
+            foreach (var path in steamPaths)
+            {
+                if (File.Exists(path))
+                {
+                    Logger.Log(LogLevel.Debug, $"Found Steam at: {path}");
+                    return path;
+                }
+            }
+
+            // Try to find Steam in the registry
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Valve\Steam");
+                if (key?.GetValue("SteamExe") is string registryPath && File.Exists(registryPath))
+                {
+                    Logger.Log(LogLevel.Debug, $"Found Steam in registry: {registryPath}");
+                    return registryPath;
+                }
+            }
+            catch (Exception regEx)
+            {
+                Logger.Log(LogLevel.Debug, $"Registry lookup failed: {regEx.Message}");
+            }
+
+            Logger.Log(LogLevel.Warning, $"Could not locate Steam installation");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, $"Error finding Steam executable: {ex.Message}");
+            return null;
         }
     }
 
