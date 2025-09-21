@@ -297,8 +297,9 @@ public static class AssetPatcher
                 Logger.Log(LogLevel.Debug, $"No relevant assets found in {fileName}, skipping file");
                 return 0;
             }
-
-            WMODB.loadAllAssets(manager, fileInst); //load DB now that we know there are assets
+            
+            AssetModel assetHandler = new AssetModel();
+            assetHandler.loadAllAssets(manager, fileInst); //load DB now that we know there are assets
 
             // Collect all replacers for this file
             var processedAssets = 0;

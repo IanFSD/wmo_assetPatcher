@@ -1,9 +1,5 @@
-using AssetsTools.NET;
-using AssetsTools.NET.Extra;
+using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
-using Mono.Cecil.Cil;
-using SharpCompress;
-using WMO.Helper;
 using WMO.Logging;
 
 namespace WMO.SQL;
@@ -21,24 +17,39 @@ class DataClass
 
     /**
     * Generic query function for using SQLite table
+    * Note: CAN RETURN NULL!!! If using Select, the calling function must be able to handle the null!
     */
-    public void query(string query) //may change to private once more SQL commands are established
+    public SqliteDataReader query(string query) //may change to private once more SQL commands are established
     {
         try
         {
             connection.Open(); //open channel to DB
-                
+
             using var command = new SqliteCommand(query, connection); //establish command query + DB
-            command.ExecuteNonQuery(); //run the query now
-            connection.Close(); //close the channel
+            if (Regex.IsMatch(query, @"\bSELECT\b"))
+            { //if we are using a SELECT statement with the capital word
+                SqliteDataReader reader = command.ExecuteReader();
+                if (reader.Read()) //NOTE!!! Only returns us 1st row at a time
+                {
+                    connection.Close(); //close the channel
+                    return reader; //return our select search result
+                } //else, there were no records and we continue to simply close
+            }
+            else
+            { //it's not a SELECT, we move to non-return
+                command.ExecuteNonQuery();
+            }
+            connection.Close(); //guarantee channel close ehre
+            return null;
         }
         catch (Exception ex)
         {
-                //log the query
+            //log the query
             Logger.Log(LogLevel.Debug, $"=== WMO SQL Query Opened ===");
             Logger.Log(LogLevel.Debug, $"{query}");
             Logger.Log(LogLevel.Debug, $"=== End of Query ===");
             handleSQLError(ex); //deal with errors
+            return null;
         }
     }
 
@@ -102,7 +113,8 @@ class DataClass
     */
     public void dropTables()
     {
-        try{
+        try
+        {
             connection.Open();
             String dropFiles = @"DROP Table Files";
             query(dropFiles);
@@ -111,63 +123,9 @@ class DataClass
             String dropAssets = @"DROP TABLE Assets";
             query(dropAssets);
         }
-        catch (Exception ex){
+        catch (Exception ex)
+        {
             handleSQLError(ex);
-        }
-    }
-
-    /**
-    * Generic asset insert query
-    */
-    public void insertAsset(AssetFileInfo assetFile, AssetTypeValueField assetField){
-        //assetId autoincrements
-        string name = assetField["m_Name"].AsString;
-        long pathId = assetFile.PathId;
-        int classId = assetFile.TypeId;
-        string json = readJSONAsset(assetField, "");
-        int lastChanged = (int)DateTimeOffset.Now.ToUnixTimeMilliseconds();
-
-        String insertAssetQuery = @"INSERT INTO Assets(name, pathId, classId, source, lastChanged)
-                VALUES('" + name + "', " + pathId + ", " + classId + ", '" + json + "', " + lastChanged +
-            ")";
-        query(insertAssetQuery);
-    }
-    public void loadAllAssets(AssetsManager manager, AssetsFileInstance anInstance)
-    {
-        int[] listOfTypes = [ //list of all files we are interested in
-            (int)AssetClassID.AudioClip,
-            //(int)AssetClassID.Sprite,
-            (int)AssetClassID.Texture2D
-        ];
-
-        var afile = anInstance.file;
-
-        foreach (int type in listOfTypes)
-        { //iterate over file types
-            var files = afile.GetAssetsOfType(type); //generate file list
-            if (!files.Any()){continue;} //check if list is empty, if so, move onto the next cycle
-            var count = 0; //count number of rows before risking memory limit
-            String insertAssetQuery = @"INSERT INTO Assets(name, pathId, classId, source, lastChanged) VALUES";
-            foreach (var assetFile in files)
-            { //iterate over files in that list
-                var assetField = manager.GetBaseField(anInstance, assetFile);
-                //assetId autoincrements
-                string name = assetField["m_Name"].AsString; long pathId = assetFile.PathId;
-                int classId = assetFile.TypeId; int lastChanged = (int)DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                string json = readJSONAsset(assetField, "");
-                insertAssetQuery += " ('" + name + "', " + pathId + ", " + classId + ", '" + json + "', " + lastChanged + "),";
-                count++;
-                if (count > 10)
-                { //memory limit, need to submit the query and then start from 0 rows
-                    //Logger.Log(LogLevel.Info, $"===DUMPING===");
-                    insertAssetQuery = insertAssetQuery.Substring(0, insertAssetQuery.Length - 1);
-                    query(insertAssetQuery);
-                    count = 0;
-                    insertAssetQuery = @"INSERT INTO Assets(name, pathId, classId, source, lastChanged) VALUES";
-                }
-            }
-            insertAssetQuery = insertAssetQuery.Substring(0, insertAssetQuery.Length-1);
-            query(insertAssetQuery);
         }
     }
 
@@ -182,22 +140,4 @@ class DataClass
         Logger.Log(LogLevel.Error, $"{ex.Message} \n {ex.StackTrace}");
         Logger.Log(LogLevel.Error, $"=== End of SQL Error ===");
     }
-
-    /**
-    * Read all fields in an AssetTypeValueField object for its json
-    */
-    public string readJSONAsset(AssetTypeValueField assetField, string returnString)
-    {
-        returnString += "{"; //open the object up in json
-        foreach (AssetTypeValueField child in assetField.Children){ //loop over children
-            returnString += "\"" + child.TemplateField.Name.ToString() + "\": "; //add the name
-            try{ //will fail if object
-                returnString += assetField[child.TemplateField.Name.ToString()].AsString + ",";} //get the value by referring the name
-            catch (Exception) { returnString += readJSONAsset(child, returnString) + ","; } //if error, means we need to go deeper
-        }
-        returnString = returnString.Substring(0, returnString.Length-1); //if we are at the first layer, cut off the last comma
-        return returnString + "}";
-    }
 }
-
-//test
