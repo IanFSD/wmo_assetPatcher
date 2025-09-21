@@ -2,8 +2,6 @@ using AssetsTools.NET;
 using WMO.Helper;
 using WMO.Logging;
 using AssetsTools.NET.Extra;
-using NAudio.Wave;
-using NAudio.Vorbis;
 using WMO.SQL;
 
 namespace WMO.AssetPatcher;
@@ -297,7 +295,7 @@ public static class AssetPatcher
                 Logger.Log(LogLevel.Debug, $"No relevant assets found in {fileName}, skipping file");
                 return 0;
             }
-            
+
             AssetModel assetHandler = new AssetModel();
             assetHandler.loadAllAssets(manager, fileInst); //load DB now that we know there are assets
 
