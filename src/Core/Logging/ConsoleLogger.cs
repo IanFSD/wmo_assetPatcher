@@ -1,7 +1,8 @@
 using System.Runtime.CompilerServices;
-using WMO.Helper;
+using WMO.Core.Helpers;
+using WMO.Core.Services;
 
-namespace WMO.Logging;
+namespace WMO.Core.Logging;
 
 public static class Logger {
     private static readonly string ExeLogFilePath;
@@ -10,6 +11,7 @@ public static class Logger {
     private static string? _lastInstallLogPath;
     
     public static event Action<string>? LogMessageAdded;
+    public static event EventHandler<string>? LogReceived;
     private static readonly List<string> _logMessages = new();
 
     static Logger() {
@@ -23,10 +25,10 @@ public static class Logger {
     public static string GetLogPath() => GetInstallLogPath() ?? ExeLogFilePath;
 
     private static string? GetInstallLogPath() {
-        if (string.IsNullOrEmpty(SettingsHolder.InstallPath))
+        if (string.IsNullOrEmpty(SettingsService.Current.GamePath))
             return null;
 
-        var installLogDirectory = Path.Combine(SettingsHolder.InstallPath, "Logs");
+        var installLogDirectory = Path.Combine(SettingsService.Current.GamePath, "Logs");
         return !Directory.Exists(installLogDirectory) ? null : Path.Combine(installLogDirectory, "Whisker Mountain Outbreak.log");
     }
 
@@ -37,9 +39,10 @@ public static class Logger {
         }
     }
 
-    private static void WriteToLogs(string content, bool timestamped = true) {
+    private static void WriteToLogs(string content, bool timestamped = true, LogLevel? logLevel = null) {
         var logMessage = timestamped ? $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {content}" : content;
-        Console.WriteLine(logMessage);
+        
+
 
         try {
             lock (LockObject) {
@@ -48,6 +51,7 @@ public static class Logger {
 
                 _logMessages.Add(logMessage);
                 LogMessageAdded?.Invoke(logMessage);
+                LogReceived?.Invoke(null, logMessage);
 
                 var installLogPath = GetInstallLogPath();
                 if (installLogPath == null) return;
@@ -61,10 +65,10 @@ public static class Logger {
 
     public static void Log(LogLevel lvl, [InterpolatedStringHandlerArgument("lvl")] LogInterpolatedStringHandler handler)
     {
-        if (lvl > SettingsHolder.LogLevel || SettingsHolder.LogLevel == LogLevel.None)
+        if (lvl > SettingsService.Current.LogLevel || SettingsService.Current.LogLevel == LogLevel.None)
             return;
 
-        WriteToLogs($"{lvl.ToString().ToUpper()}: {handler.ToString()}");
+        WriteToLogs($"{lvl.ToString().ToUpper()}: {handler.ToString()}", timestamped: true, logLevel: lvl);
     }
     
     public static List<string> GetAllMessages() {
@@ -72,7 +76,16 @@ public static class Logger {
     }
 
     public static void LogLineBreak(LogLevel lvl) {
-        if (lvl > SettingsHolder.LogLevel || SettingsHolder.LogLevel == LogLevel.None) return;
+        if (lvl > SettingsService.Current.LogLevel || SettingsService.Current.LogLevel == LogLevel.None) return;
         WriteToLogs(string.Empty, timestamped: false);
     }
+    
+    // Helper methods for common logging scenarios
+    public static void LogInfo(string message) => Log(LogLevel.Info, $"{message}");
+    public static void LogError(string message) => Log(LogLevel.Error, $"{message}");
+    public static void LogWarning(string message) => Log(LogLevel.Warning, $"{message}");
+    public static void LogSuccess(string message) => Log(LogLevel.Success, $"{message}");
+    public static void LogDebug(string message) => Log(LogLevel.Debug, $"{message}");
+    
+
 }

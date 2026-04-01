@@ -1,4 +1,4 @@
-namespace WMO.Logging;
+namespace WMO.Core.Logging;
 
 public enum LogLevel : byte {
 	None = 0,
