@@ -12,6 +12,9 @@ public class FolderMod
     public string? Description { get; set; }
     public string? Version { get; set; }
     public string? Author { get; set; }
+    public string? UniqueID { get; set; }
+    public bool IsManifestBased { get; set; }
+    public ModManifest? Manifest { get; set; }
     public DateTime? CreatedDate { get; init; }
     public DateTime? ModifiedDate { get; init; }
     
@@ -60,11 +63,28 @@ public class FolderMod
     }
     
     /// <summary>
+    /// Gets display text with version and author
+    /// </summary>
+    public string DisplayInfo
+    {
+        get
+        {
+            var info = Name;
+            if (!string.IsNullOrEmpty(Version))
+                info += $" v{Version}";
+            if (!string.IsNullOrEmpty(Author))
+                info += $" by {Author}";
+            return info;
+        }
+    }
+    
+    /// <summary>
     /// Gets count of each mod type
     /// </summary>
     public int AudioFileCount => ModFiles.Count(f => f.Type == ModType.Audio);
     public int SpriteFileCount => ModFiles.Count(f => f.Type == ModType.Sprite);
     public int TextureFileCount => ModFiles.Count(f => f.Type == ModType.Texture);
+    public int BepInExPluginCount => ModFiles.Count(f => f.Type == ModType.BepInExPlugin);
     
     /// <summary>
     /// Gets enabled file count

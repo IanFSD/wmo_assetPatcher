@@ -31,10 +31,11 @@ namespace WMO.UI
         // Mods tab controls
         private ListView lstMods;
         private Label lblModCount;
+        private Label lblModSummary;
         private Label lblGamePathStatus;
-        private Button btnPatchGame;
         private Button btnLaunchGame;
         private Button btnRefreshMods;
+        private Button btnOpenModsFolder;
         
         // Assets tab controls
         private ListView lstAssets;
@@ -102,10 +103,11 @@ namespace WMO.UI
             
             this.lstMods = new ListView();
             this.lblModCount = new Label();
+            this.lblModSummary = new Label();
             this.lblGamePathStatus = new Label();
-            this.btnPatchGame = new Button();
             this.btnLaunchGame = new Button();
             this.btnRefreshMods = new Button();
+            this.btnOpenModsFolder = new Button();
             
             this.lstAssets = new ListView();
             this.lblAssetCount = new Label();
@@ -178,16 +180,17 @@ namespace WMO.UI
             // 
             this.tabMods.Controls.Add(this.lstMods);
             this.tabMods.Controls.Add(this.lblModCount);
+            this.tabMods.Controls.Add(this.lblModSummary);
             this.tabMods.Controls.Add(this.lblGamePathStatus);
-            this.tabMods.Controls.Add(this.btnPatchGame);
             this.tabMods.Controls.Add(this.btnLaunchGame);
             this.tabMods.Controls.Add(this.btnRefreshMods);
+            this.tabMods.Controls.Add(this.btnOpenModsFolder);
             this.tabMods.Location = new Point(4, 24);
             this.tabMods.Name = "tabMods";
             this.tabMods.Padding = new Padding(3);
             this.tabMods.Size = new Size(852, 508);
             this.tabMods.TabIndex = 0;
-            this.tabMods.Text = "Mods";
+            this.tabMods.Text = "Mod Loader";
             this.tabMods.UseVisualStyleBackColor = true;
             
             // 
@@ -206,19 +209,31 @@ namespace WMO.UI
             this.lstMods.ItemChecked += this.lstMods_ItemChecked;
             
             // Set up columns
-            this.lstMods.Columns.Add("Mod Name", 300);
-            this.lstMods.Columns.Add("Types", 150);
-            this.lstMods.Columns.Add("Files", 200);
+            this.lstMods.Columns.Add("Mod Name", 200);
+            this.lstMods.Columns.Add("Author", 120);
+            this.lstMods.Columns.Add("Type", 80);
+            this.lstMods.Columns.Add("Description", 440);
             
             // 
             // lblModCount
             // 
             this.lblModCount.AutoSize = true;
+            this.lblModCount.Font = new Font(this.Font.FontFamily, 9F, FontStyle.Bold);
             this.lblModCount.Location = new Point(6, 10);
             this.lblModCount.Name = "lblModCount";
-            this.lblModCount.Size = new Size(79, 15);
+            this.lblModCount.Size = new Size(160, 15);
             this.lblModCount.TabIndex = 0;
-            this.lblModCount.Text = "Mods found: 0";
+            this.lblModCount.Text = "Available Mods (0)";
+            // 
+            // lblModSummary
+            // 
+            this.lblModSummary.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            this.lblModSummary.Location = new Point(500, 10);
+            this.lblModSummary.Name = "lblModSummary";
+            this.lblModSummary.Size = new Size(346, 15);
+            this.lblModSummary.TabIndex = 7;
+            this.lblModSummary.Text = "0 mods selected";
+            this.lblModSummary.TextAlign = ContentAlignment.TopRight;
             
             // 
             // lblGamePathStatus
@@ -238,30 +253,30 @@ namespace WMO.UI
             this.btnRefreshMods.Name = "btnRefreshMods";
             this.btnRefreshMods.Size = new Size(100, 35);
             this.btnRefreshMods.TabIndex = 3;
-            this.btnRefreshMods.Text = "Refresh Mods";
+            this.btnRefreshMods.Text = "⟳ Refresh";
             this.btnRefreshMods.UseVisualStyleBackColor = true;
             this.btnRefreshMods.Click += this.btnRefreshMods_Click;
-            
             // 
-            // btnPatchGame
+            // btnOpenModsFolder
             // 
-            this.btnPatchGame.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            this.btnPatchGame.Location = new Point(636, 450);
-            this.btnPatchGame.Name = "btnPatchGame";
-            this.btnPatchGame.Size = new Size(100, 35);
-            this.btnPatchGame.TabIndex = 4;
-            this.btnPatchGame.Text = "Patch Game";
-            this.btnLaunchGame.UseVisualStyleBackColor = true;
-            this.btnPatchGame.Click += this.btnPatchGame_Click;
+            this.btnOpenModsFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            this.btnOpenModsFolder.Location = new Point(112, 450);
+            this.btnOpenModsFolder.Name = "btnOpenModsFolder";
+            this.btnOpenModsFolder.Size = new Size(120, 35);
+            this.btnOpenModsFolder.TabIndex = 8;
+            this.btnOpenModsFolder.Text = "📂 Mods Folder";
+            this.btnOpenModsFolder.UseVisualStyleBackColor = true;
+            this.btnOpenModsFolder.Click += this.btnOpenModsFolder_Click;
             
             // 
             // btnLaunchGame
             // 
             this.btnLaunchGame.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            this.btnLaunchGame.Location = new Point(746, 450);
+            this.btnLaunchGame.Location = new Point(686, 450);
             this.btnLaunchGame.Name = "btnLaunchGame";
-            this.btnLaunchGame.Size = new Size(100, 35);
-            this.btnLaunchGame.TabIndex = 5;
+            this.btnLaunchGame.Size = new Size(160, 35);
+            this.btnLaunchGame.TabIndex = 4;
+            this.btnLaunchGame.Font = new Font(this.Font.FontFamily, 9.5F, FontStyle.Bold);
             this.btnLaunchGame.Text = "Launch Game";
             this.btnLaunchGame.UseVisualStyleBackColor = true;
             this.btnLaunchGame.Click += this.btnLaunchGame_Click;
@@ -281,7 +296,7 @@ namespace WMO.UI
             this.tabAssets.Padding = new Padding(3);
             this.tabAssets.Size = new Size(852, 508);
             this.tabAssets.TabIndex = 1;
-            this.tabAssets.Text = "Assets";
+            this.tabAssets.Text = "Asset Browser";
             this.tabAssets.UseVisualStyleBackColor = true;
             
             // 
@@ -446,7 +461,7 @@ namespace WMO.UI
             // 
             this.tabSettings.Controls.Add(this.grpGeneral);
             this.tabSettings.Controls.Add(this.grpLogging);
-            this.tabSettings.Controls.Add(this.grpInterface);
+            // this.tabSettings.Controls.Add(this.grpInterface); // Hidden - not ready yet
             this.tabSettings.Location = new Point(4, 24);
             this.tabSettings.Name = "tabSettings";
             this.tabSettings.Padding = new Padding(3);
@@ -599,8 +614,8 @@ namespace WMO.UI
             // statusLabel
             // 
             this.statusLabel.Name = "statusLabel";
-            this.statusLabel.Size = new Size(39, 17);
-            this.statusLabel.Text = "Ready";
+            this.statusLabel.Size = new Size(200, 17);
+            this.statusLabel.Text = "Ready — Select mods and launch";
             
             // 
             // MainForm
@@ -621,7 +636,7 @@ namespace WMO.UI
             }
             this.MainMenuStrip = this.menuStrip;
             this.Name = "MainForm";
-            this.Text = "WMO Asset Patcher";
+            this.Text = "WMO Mod Loader";
             this.menuStrip.ResumeLayout(false);
             this.menuStrip.PerformLayout();
             this.tabControl.ResumeLayout(false);

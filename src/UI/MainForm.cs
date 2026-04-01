@@ -1,7 +1,6 @@
 using WMO.Core.Logging;
 using WMO.Core.Services;
 using WMO.Core.Helpers;
-using WMO.Core.Patching;
 using WMO.UI.Forms;
 using WMO.Core.Models;
 using WMO.Core.Models.Enums;
@@ -16,8 +15,9 @@ public partial class MainForm : Form
 {
     private readonly FolderModService _folderModService = new();
     private readonly AssetScannerService _assetScannerService = new();
-    private bool _isPatchingInProgress = false;
+    private bool _isLaunchInProgress = false;
     private CancellationTokenSource? _scanCancellationSource;
+    private CancellationTokenSource? _gameMonitorCts;
 
     public MainForm()
     {
@@ -30,7 +30,7 @@ public partial class MainForm : Form
     private void InitializeForm()
     {
         // Set form properties
-        this.Text = "WMO Asset Patcher";
+        this.Text = "WMO Mod Loader";
         this.StartPosition = FormStartPosition.CenterScreen;
         
         // Load window size from settings
@@ -123,19 +123,50 @@ public partial class MainForm : Form
         
         foreach (var folderMod in _folderModService.AvailableMods)
         {
-            var item = new ListViewItem(folderMod.Name)
+            // Create display name with version
+            var displayName = folderMod.Name;
+            
+            if (!string.IsNullOrEmpty(folderMod.Version))
+                displayName += $" v{folderMod.Version}";
+            
+            var item = new ListViewItem(displayName)
             {
                 Tag = folderMod,
                 Checked = folderMod.IsEnabled
             };
             
+            // Add author
+            item.SubItems.Add(folderMod.Author ?? "Unknown");
+            
+            // Add type summary
             item.SubItems.Add(folderMod.TypesSummary);
-            item.SubItems.Add($"{folderMod.FileCount} files ({folderMod.FormattedTotalSize})");
+            
+            // Add description
+            item.SubItems.Add(folderMod.Description ?? "");
             
             lstMods.Items.Add(item);
         }
         
-        lblModCount.Text = $"Mods found: {_folderModService.AvailableMods.Count}";
+        lblModCount.Text = $"Available Mods ({_folderModService.AvailableMods.Count})";
+        UpdateModSummary();
+        
+        // Resize description column to fill available space
+        ResizeDescriptionColumn();
+    }
+
+    private void UpdateModSummary()
+    {
+        var enabledCount = _folderModService.AvailableMods.Count(m => m.IsEnabled);
+        var pluginCount = _folderModService.AvailableMods
+            .Where(m => m.IsEnabled)
+            .Sum(m => m.ModFiles.Count(f => f.Type == ModType.BepInExPlugin && f.IsEnabled));
+        
+        var parts = new List<string>();
+        parts.Add($"{enabledCount} mod{(enabledCount != 1 ? "s" : "")} selected");
+        if (pluginCount > 0)
+            parts.Add($"{pluginCount} plugin{(pluginCount != 1 ? "s" : "")}");
+        
+        lblModSummary.Text = string.Join(" · ", parts);
     }
 
     private void UpdateGamePathStatus()
@@ -147,7 +178,6 @@ public partial class MainForm : Form
         {
             lblGamePathStatus.Text = "⚠ No game path configured";
             lblGamePathStatus.ForeColor = Color.Orange;
-            btnPatchGame.Enabled = false;
             btnLaunchGame.Enabled = false;
         }
         else if (GamePathService.ValidateGamePath(gamePath))
@@ -155,166 +185,29 @@ public partial class MainForm : Form
             var gameVersionText = settings.GameVersion == GameVersion.FullGame ? "Full Game" : "Friend's Pass";
             lblGamePathStatus.Text = $"✓ {gameVersionText} (Steam ID: {settings.SteamAppId}) - {gamePath}";
             lblGamePathStatus.ForeColor = Color.Green;
-            btnPatchGame.Enabled = !_isPatchingInProgress && _folderModService.AvailableMods.Any(m => m.IsEnabled);
-            btnLaunchGame.Enabled = !_isPatchingInProgress;
+            btnLaunchGame.Enabled = !_isLaunchInProgress;
         }
         else
         {
             lblGamePathStatus.Text = "✗ Invalid game path";
             lblGamePathStatus.ForeColor = Color.Red;
-            btnPatchGame.Enabled = false;
             btnLaunchGame.Enabled = false;
-        }
-    }
-
-    private async void btnPatchGame_Click(object sender, EventArgs e)
-    {
-        if (_isPatchingInProgress) return;
-        
-        try
-        {
-            // Get selected mods
-            var selectedMods = _folderModService.AvailableMods.Where(m => m.IsEnabled).ToList();
-            if (!selectedMods.Any())
-            {
-                MessageBox.Show("No mods selected for patching.", "No Mods Selected", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            // Always show confirmation before patching
-            var totalFiles = selectedMods.Sum(m => m.FileCount);
-            var result = MessageBox.Show(
-                $"This will patch the game with {selectedMods.Count} selected mod(s) containing {totalFiles} files. " +
-                "The operation will create backups of original files before making changes.\n\n" +
-                "Do you want to continue?",
-                "Confirm Patching",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
-                
-            if (result != DialogResult.Yes)
-                return;
-
-            _isPatchingInProgress = true;
-            UpdateGamePathStatus();
-            
-            // Update status for selected mods
-            foreach (var mod in selectedMods)
-            {
-                mod.Status = "Preparing...";
-            }
-            
-            // Allocate console window for patching output
-            var settings = SettingsService.Current;
-            ConsoleService.AllocateConsole("WMO Asset Patcher - Patching Progress");
-            ConsoleService.WriteHeader("Starting Game Patching Process", ConsoleColor.Green);
-            
-            // Enable console output temporarily
-            var originalConsoleOutput = settings.ConsoleOutput;
-            settings.ConsoleOutput = true;
-            
-            // Run patching in background
-            bool success = false;
-            await Task.Run(() =>
-            {
-                try
-                {
-                    success = AssetPatcher.TryPatch(settings.GamePath!);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log(LogLevel.Error, $"Patching failed with exception: {ex.Message}");
-                    success = false;
-                }
-            });
-            
-            // Update status for all mods (don't remove them from list!)
-            foreach (var mod in selectedMods)
-            {
-                mod.Status = success ? "Patched" : "Failed";
-            }
-            
-            // Restore original console setting
-            settings.ConsoleOutput = originalConsoleOutput;
-            
-            // Show completion in console
-            if (success)
-            {
-                ConsoleService.WriteHeader("Patching Completed Successfully!", ConsoleColor.Green);
-                ConsoleService.WriteColoredMessage("All mods have been applied successfully. You can close this window.", ConsoleColor.Green);
-            }
-            else
-            {
-                ConsoleService.WriteHeader("Patching Failed!", ConsoleColor.Red);
-                ConsoleService.WriteColoredMessage("Some errors occurred during patching. Check the log messages above for details.", ConsoleColor.Red);
-            }
-            
-            ConsoleService.WriteColoredMessage("\nPress any key to close this window...", ConsoleColor.Yellow);
-            
-            // Wait for user input in a background task so UI remains responsive
-            _ = Task.Run(() =>
-            {
-                try
-                {
-                    Console.ReadKey(true);
-                    this.Invoke(() => ConsoleService.FreeConsoleWindow());
-                }
-                catch
-                {
-                    // Ignore errors if console is already closed
-                }
-            });
-            
-            // Show result message in main UI
-            if (success)
-            {
-                MessageBox.Show("Game patching completed successfully!", "Patching Complete", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            else
-            {
-                MessageBox.Show("Game patching failed. Check the console output for details.", "Patching Failed", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.Log(LogLevel.Error, $"Error during patching: {ex.Message}");
-            ConsoleService.WriteHeader("Critical Error!", ConsoleColor.Red);
-            ConsoleService.WriteColoredMessage($"A critical error occurred: {ex.Message}", ConsoleColor.Red);
-            ConsoleService.WriteColoredMessage("\nPress any key to close this window...", ConsoleColor.Yellow);
-            
-            // Wait for user input in error case too
-            _ = Task.Run(() =>
-            {
-                try
-                {
-                    Console.ReadKey(true);
-                    this.Invoke(() => ConsoleService.FreeConsoleWindow());
-                }
-                catch
-                {
-                    // Ignore errors if console is already closed
-                }
-            });
-            
-            MessageBox.Show($"Error during patching: {ex.Message}", "Error", 
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-        finally
-        {
-            _isPatchingInProgress = false;
-            UpdateGamePathStatus();
         }
     }
 
     private void btnLaunchGame_Click(object sender, EventArgs e)
     {
+        if (_isLaunchInProgress) return;
+        
+        bool shouldMonitor = false;
+        
         try
         {
+            _isLaunchInProgress = true;
+            UpdateGamePathStatus();
+            
             var settings = SettingsService.Current;
             
-            // Launch through Steam using the correct Steam App ID based on game version
             if (string.IsNullOrEmpty(settings.SteamAppId))
             {
                 MessageBox.Show("Steam App ID not configured. Please check your game version settings.", 
@@ -322,10 +215,51 @@ public partial class MainForm : Form
                 return;
             }
             
+            // Get enabled mods that have BepInEx plugins
+            var enabledMods = _folderModService.AvailableMods.Where(m => m.IsEnabled).ToList();
+            var pluginCount = enabledMods.Sum(m => m.ModFiles.Count(f => f.Type == ModType.BepInExPlugin && f.IsEnabled));
+            
+            if (pluginCount > 0)
+            {
+                // Sync enabled plugins to the managed folder
+                Logger.Log(LogLevel.Info, $"Syncing {pluginCount} BepInEx plugin(s) before launch...");
+                int synced = BepInExPluginManager.SyncPlugins(settings.GamePath!, enabledMods);
+                
+                if (synced < 0)
+                {
+                    MessageBox.Show("Failed to sync BepInEx plugins. Make sure BepInEx is installed.\n\n" +
+                                   "Check that the game path is correct and BepInEx was properly set up.",
+                        "Plugin Sync Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                
+                Logger.Log(LogLevel.Info, $"Successfully synced {synced} plugin(s)");
+            }
+            else
+            {
+                // No BepInEx plugins selected — clean managed folder for vanilla launch
+                Logger.Log(LogLevel.Info, $"No BepInEx plugins enabled. Cleaning managed folder.");
+                BepInExPluginManager.CleanManagedPlugins(settings.GamePath!);
+            }
+            
+            // Launch the game through Steam
             Logger.Log(LogLevel.Info, $"Launching game through Steam (App ID: {settings.SteamAppId}, Version: {settings.GameVersion})");
             bool success = GamePathService.LaunchGameThroughSteam(settings.SteamAppId);
             
-            if (!success)
+            if (success)
+            {
+                foreach (var mod in enabledMods)
+                {
+                    mod.Status = "Active";
+                }
+                
+                if (pluginCount > 0)
+                {
+                    shouldMonitor = true;
+                    _ = MonitorGameProcessAsync(settings.GamePath!, enabledMods);
+                }
+            }
+            else
             {
                 MessageBox.Show($"Failed to launch the game through Steam.\n\n" +
                                $"Game Version: {settings.GameVersion}\n" +
@@ -340,14 +274,131 @@ public partial class MainForm : Form
         catch (Exception ex)
         {
             Logger.Log(LogLevel.Error, $"Error launching game: {ex.Message}");
-            MessageBox.Show($"Error launching game through Steam: {ex.Message}", "Error", 
+            MessageBox.Show($"Error launching game: {ex.Message}", "Error", 
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            if (!shouldMonitor)
+            {
+                _isLaunchInProgress = false;
+                UpdateGamePathStatus();
+            }
+        }
+    }
+
+    private async Task MonitorGameProcessAsync(string gameRoot, List<FolderMod> enabledMods)
+    {
+        const string processName = "Whisper Mountain Outbreak";
+        const int pollIntervalMs = 2000;
+        const int maxWaitForStartMs = 120_000; // 2 minutes to detect the game process
+
+        try
+        {
+            _gameMonitorCts = new CancellationTokenSource();
+            var token = _gameMonitorCts.Token;
+
+            Invoke(() =>
+            {
+                btnLaunchGame.Text = "Game Running...";
+                btnLaunchGame.Enabled = false;
+                statusLabel.Text = "Waiting for game to start...";
+            });
+
+            // Poll until the game process appears
+            System.Diagnostics.Process? gameProcess = null;
+            var startWait = DateTime.UtcNow;
+
+            while (gameProcess == null)
+            {
+                token.ThrowIfCancellationRequested();
+
+                if ((DateTime.UtcNow - startWait).TotalMilliseconds > maxWaitForStartMs)
+                {
+                    Logger.Log(LogLevel.Warning, $"Timed out waiting for game process to start. Cleaning up plugins.");
+                    break;
+                }
+
+                var processes = System.Diagnostics.Process.GetProcessesByName(processName);
+                if (processes.Length > 0)
+                {
+                    gameProcess = processes[0];
+                    for (int i = 1; i < processes.Length; i++)
+                        processes[i].Dispose();
+                }
+                else
+                {
+                    await Task.Delay(pollIntervalMs, token);
+                }
+            }
+
+            if (gameProcess != null)
+            {
+                Logger.Log(LogLevel.Info, $"Game process detected. Monitoring for exit...");
+
+                Invoke(() => statusLabel.Text = "Game is running. Mods will be cleaned up on exit.");
+
+                // Wait for the game to close
+                await gameProcess.WaitForExitAsync(token);
+                gameProcess.Dispose();
+
+                Logger.Log(LogLevel.Info, $"Game process exited.");
+            }
+
+            // Clean up managed plugins
+            BepInExPluginManager.CleanManagedPlugins(gameRoot);
+
+            foreach (var mod in enabledMods)
+                mod.Status = "Ready";
+
+            Logger.Log(LogLevel.Success, $"Post-game cleanup completed. Managed plugins removed.");
+
+            Invoke(() =>
+            {
+                statusLabel.Text = "Game closed. Mods cleaned up.";
+                UpdateModsList();
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.Log(LogLevel.Info, $"Game monitoring cancelled. Plugins will be cleaned on next launch.");
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, $"Error monitoring game process: {ex.Message}");
+        }
+        finally
+        {
+            _gameMonitorCts?.Dispose();
+            _gameMonitorCts = null;
+
+            if (!this.IsDisposed && !this.Disposing)
+            {
+                Invoke(() =>
+                {
+                    _isLaunchInProgress = false;
+                    btnLaunchGame.Text = "Launch Game";
+                    UpdateGamePathStatus();
+                });
+            }
         }
     }
 
     private void btnRefreshMods_Click(object sender, EventArgs e)
     {
         LoadMods();
+    }
+
+    private void btnOpenModsFolder_Click(object sender, EventArgs e)
+    {
+        var modsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mods");
+        if (!Directory.Exists(modsPath))
+            Directory.CreateDirectory(modsPath);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = modsPath,
+            UseShellExecute = true
+        });
     }
 
     private void lstMods_ItemChecked(object sender, ItemCheckedEventArgs e)
@@ -357,7 +408,8 @@ public partial class MainForm : Form
             folderMod.IsEnabled = e.Item.Checked;
         }
         
-        // Update patch button state
+        // Update summary and launch button state
+        UpdateModSummary();
         UpdateGamePathStatus();
     }
 
@@ -371,11 +423,38 @@ public partial class MainForm : Form
                 settings.WindowWidth = this.Width;
                 settings.WindowHeight = this.Height;
             }
+            
+            // Resize Description column to fill remaining space
+            ResizeDescriptionColumn();
+        }
+    }
+    
+    private void ResizeDescriptionColumn()
+    {
+        if (lstMods.Columns.Count >= 4)
+        {
+            // Calculate available width (subtract width of first three columns + checkbox space)
+            int availableWidth = lstMods.ClientSize.Width - lstMods.Columns[0].Width - lstMods.Columns[1].Width - lstMods.Columns[2].Width - 25;
+            if (availableWidth > 100)
+            {
+                lstMods.Columns[3].Width = availableWidth;
+            }
         }
     }
 
     private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
     {
+        // Prevent closing while the game is running
+        if (_gameMonitorCts != null)
+        {
+            MessageBox.Show(
+                "The game is still running. Please close the game before exiting.\n\n" +
+                "Mods will be automatically cleaned up when the game exits.",
+                "Game Running", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            e.Cancel = true;
+            return;
+        }
+        
         // Save window size
         var settings = SettingsService.Current;
         if (settings.RememberWindowSize && this.WindowState != FormWindowState.Minimized)

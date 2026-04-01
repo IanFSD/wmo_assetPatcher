@@ -27,6 +27,9 @@ public class FolderModViewModel : INotifyPropertyChanged
     public string? Description => _folderMod.Description;
     public string? Version => _folderMod.Version;
     public string? Author => _folderMod.Author;
+    public string? UniqueID => _folderMod.UniqueID;
+    public bool IsManifestBased => _folderMod.IsManifestBased;
+    public ModManifest? Manifest => _folderMod.Manifest;
     public DateTime? CreatedDate => _folderMod.CreatedDate;
     public DateTime? ModifiedDate => _folderMod.ModifiedDate;
     
@@ -48,7 +51,16 @@ public class FolderModViewModel : INotifyPropertyChanged
     // Computed properties
     public int TotalFiles => ModFiles.Count;
     public int EnabledFiles => ModFiles.Count(f => f.IsEnabled);
-    public string DisplayName => $"{Name} ({EnabledFiles}/{TotalFiles} files)";
+    public string DisplayName
+    {
+        get
+        {
+            var name = Name;
+            if (!string.IsNullOrEmpty(Version))
+                name += $" v{Version}";
+            return $"{name} ({EnabledFiles}/{TotalFiles} files)";
+        }
+    }
     public long TotalSize => ModFiles.Sum(f => f.FileSize);
     public string FormattedTotalSize => FormatFileSize(TotalSize);
     

@@ -7,5 +7,6 @@ public enum ModType
 {
     Audio,
     Sprite, 
-    Texture
+    Texture,
+    BepInExPlugin
 }

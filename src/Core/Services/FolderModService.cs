@@ -65,6 +65,7 @@ public class FolderModService
     
     /// <summary>
     /// Scans a single mod folder and creates a FolderMod instance
+    /// Requires manifest.json to be present
     /// </summary>
     private FolderMod? ScanModFolder(string folderPath)
     {
@@ -73,109 +74,18 @@ public class FolderModService
         
         Logger.Log(LogLevel.Debug, $"Scanning mod folder: {folderName}");
         
-        // Get all files in the folder and subfolders
-        var files = Directory.GetFiles(folderPath, "*.*", SearchOption.AllDirectories);
-        var audioExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a" };
-        var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
-        
-        var modFiles = new List<ModFile>();
-        
-        foreach (var filePath in files)
+        // Check for manifest.json (required)
+        var manifestPath = Path.Combine(folderPath, "manifest.json");
+        if (!File.Exists(manifestPath))
         {
-            var extension = Path.GetExtension(filePath).ToLowerInvariant();
-            var fileName = Path.GetFileNameWithoutExtension(filePath);
-            var fileInfo = new FileInfo(filePath);
-            
-            ModType? modType = null;
-            
-            if (audioExtensions.Contains(extension))
-            {
-                modType = ModType.Audio;
-            }
-            else if (imageExtensions.Contains(extension))
-            {
-                // Determine if sprite or texture based on path/name
-                modType = DetermineImageType(filePath, fileName);
-            }
-            else if (extension == ".json" && fileName.ToLowerInvariant() == "mod")
-            {
-                // Skip mod.json files - they contain metadata
-                continue;
-            }
-            
-            if (modType.HasValue)
-            {
-                var modFile = new ModFile
-                {
-                    Name = fileName,
-                    FilePath = filePath,
-                    Type = modType.Value,
-                    FileSize = fileInfo.Length,
-                    CreatedDate = fileInfo.CreationTime,
-                    ModifiedDate = fileInfo.LastWriteTime
-                };
-                
-                modFiles.Add(modFile);
-            }
-        }
-        
-        // Skip folders with no valid mod files
-        if (modFiles.Count == 0)
-        {
-            Logger.Log(LogLevel.Debug, $"Skipping folder {folderName} - no valid mod files found");
+            Logger.Log(LogLevel.Warning, $"Skipping folder '{folderName}' - manifest.json required");
             return null;
         }
         
-        // Try to load mod metadata from mod.json
-        var modMetadata = LoadModMetadata(folderPath);
-        
-        var folderMod = new FolderMod
-        {
-            Name = modMetadata?.Name ?? folderName,
-            FolderPath = folderPath,
-            Description = modMetadata?.Description ?? $"Mod with {modFiles.Count} files ({modFiles.Count(f => f.Type == ModType.Audio)} audio, {modFiles.Count(f => f.Type == ModType.Sprite)} sprite, {modFiles.Count(f => f.Type == ModType.Texture)} texture)",
-            Version = modMetadata?.Version,
-            Author = modMetadata?.Author,
-            CreatedDate = folderInfo.CreationTime,
-            ModifiedDate = folderInfo.LastWriteTime
-        };
-        
-        // Add all mod files to the folder mod
-        foreach (var modFile in modFiles)
-        {
-            folderMod.ModFiles.Add(modFile);
-        }
-        
-        Logger.Log(LogLevel.Debug, $"Loaded mod '{folderMod.Name}' with {modFiles.Count} files");
-        return folderMod;
+        return ScanManifestBasedMod(folderPath, manifestPath, folderInfo);
     }
     
-    /// <summary>
-    /// Loads mod metadata from mod.json file if it exists
-    /// </summary>
-    private ModMetadata? LoadModMetadata(string folderPath)
-    {
-        var metadataPath = Path.Combine(folderPath, "mod.json");
-        
-        if (!File.Exists(metadataPath))
-        {
-            return null;
-        }
-        
-        try
-        {
-            var json = File.ReadAllText(metadataPath);
-            return JsonSerializer.Deserialize<ModMetadata>(json, new JsonSerializerOptions 
-            { 
-                PropertyNameCaseInsensitive = true 
-            });
-        }
-        catch (Exception ex)
-        {
-            Logger.Log(LogLevel.Warning, $"Failed to parse mod.json in {folderPath}: {ex.Message}");
-            return null;
-        }
-    }
+
     
     /// <summary>
     /// Creates a new mod folder structure
@@ -202,7 +112,7 @@ public class FolderModService
                 Directory.CreateDirectory(modFolderPath);
                 
                 // Create mod.json with metadata
-                var metadata = new ModMetadata
+                var metadata = new
                 {
                     Name = modName,
                     Description = description ?? $"Custom mod: {modName}",
@@ -288,20 +198,160 @@ public class FolderModService
         }
     }
     
-    private ModType DetermineImageType(string filePath, string fileName)
+    /// <summary>
+    /// Scans a manifest-based mod folder
+    /// </summary>
+    private FolderMod? ScanManifestBasedMod(string folderPath, string manifestPath, DirectoryInfo folderInfo)
     {
-        // Simple heuristic: if the path contains "sprite" or filename suggests sprite, it's a sprite
-        var lowerPath = filePath.ToLowerInvariant();
-        var lowerName = fileName.ToLowerInvariant();
-        
-        if (lowerPath.Contains("sprite") || lowerName.Contains("sprite") || 
-            lowerName.Contains("icon") || lowerName.Contains("ui"))
+        try
         {
-            return ModType.Sprite;
+            // Read and parse manifest
+            var manifestJson = File.ReadAllText(manifestPath);
+            var manifest = JsonSerializer.Deserialize<ModManifest>(manifestJson, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                ReadCommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            });
+
+            if (manifest == null)
+            {
+                Logger.Log(LogLevel.Warning, $"Failed to parse manifest.json in {folderPath}");
+                return null;
+            }
+
+            // Validate manifest
+            var (isValid, errorMessage) = manifest.Validate();
+            if (!isValid)
+            {
+                Logger.Log(LogLevel.Error, $"Invalid manifest in {folderPath}: {errorMessage}");
+                return null;
+            }
+
+            Logger.Log(LogLevel.Info, $"Loading manifest-based mod: {manifest.Name} v{manifest.Version}");
+
+            var modFiles = new List<ModFile>();
+
+            // Process content files from manifest
+            if (manifest.ContentFiles != null)
+            {
+                foreach (var contentFile in manifest.ContentFiles)
+                {
+                    if (!contentFile.Enabled) continue;
+
+                    var filePath = Path.Combine(folderPath, contentFile.FilePath);
+                    if (!File.Exists(filePath))
+                    {
+                        Logger.Log(LogLevel.Warning, $"Content file not found: {contentFile.FilePath}");
+                        continue;
+                    }
+
+                    var fileInfo = new FileInfo(filePath);
+                    var extension = Path.GetExtension(filePath).ToLowerInvariant();
+                    
+                    // Handle DLL files as BepInEx plugins (no target needed)
+                    if (extension == ".dll")
+                    {
+                        var pluginFile = new ModFile
+                        {
+                            Name = Path.GetFileNameWithoutExtension(filePath),
+                            FilePath = filePath,
+                            Type = ModType.BepInExPlugin,
+                            FileSize = fileInfo.Length,
+                            CreatedDate = fileInfo.CreationTime,
+                            ModifiedDate = fileInfo.LastWriteTime
+                        };
+                        modFiles.Add(pluginFile);
+                        continue;
+                    }
+                    
+                    // For asset files, Target is required
+                    if (string.IsNullOrWhiteSpace(contentFile.Target))
+                    {
+                        Logger.Log(LogLevel.Warning, $"ContentFile '{contentFile.FilePath}' missing Target - skipping");
+                        continue;
+                    }
+                    
+                    // Determine type from manifest or auto-detect
+                    ModType modType;
+                    if (!string.IsNullOrWhiteSpace(contentFile.Type))
+                    {
+                        modType = contentFile.Type.ToLowerInvariant() switch
+                        {
+                            "audio" => ModType.Audio,
+                            "sprite" => ModType.Sprite,
+                            "texture" => ModType.Texture,
+                            "bepinexplugin" => ModType.BepInExPlugin,
+                            _ => DetermineTypeFromExtension(extension)
+                        };
+                    }
+                    else
+                    {
+                        modType = DetermineTypeFromExtension(extension);
+                    }
+
+                    var modFile = new ModFile
+                    {
+                        Name = contentFile.Target,
+                        FilePath = filePath,
+                        Type = modType,
+                        FileSize = fileInfo.Length,
+                        CreatedDate = fileInfo.CreationTime,
+                        ModifiedDate = fileInfo.LastWriteTime
+                    };
+
+                    modFiles.Add(modFile);
+                }
+            }
+
+            if (modFiles.Count == 0)
+            {
+                Logger.Log(LogLevel.Warning, $"Manifest-based mod has no valid files: {manifest.Name}");
+                return null;
+            }
+
+            var folderMod = new FolderMod
+            {
+                Name = manifest.Name,
+                FolderPath = folderPath,
+                Description = manifest.Description ?? $"Manifest-based mod with {modFiles.Count} files",
+                Version = manifest.Version,
+                Author = manifest.Author,
+                UniqueID = manifest.UniqueID,
+                IsManifestBased = true,
+                Manifest = manifest,
+                CreatedDate = folderInfo.CreationTime,
+                ModifiedDate = folderInfo.LastWriteTime
+            };
+
+            foreach (var modFile in modFiles)
+            {
+                folderMod.ModFiles.Add(modFile);
+            }
+
+            Logger.Log(LogLevel.Success, $"Loaded manifest-based mod '{manifest.Name}' with {modFiles.Count} files");
+            return folderMod;
         }
-        
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, $"Error loading manifest-based mod from {folderPath}: {ex.Message}");
+            return null;
+        }
+    }
+
+    private ModType DetermineTypeFromExtension(string extension)
+    {
+        var audioExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a" };
+        var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
+
+        if (audioExtensions.Contains(extension))
+            return ModType.Audio;
+        if (imageExtensions.Contains(extension))
+            return ModType.Sprite; // Default to sprite
+
         return ModType.Texture;
     }
+
 }
 
 
