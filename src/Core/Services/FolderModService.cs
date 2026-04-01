@@ -276,18 +276,30 @@ public class FolderModService
                     ModType modType;
                     if (!string.IsNullOrWhiteSpace(contentFile.Type))
                     {
-                        modType = contentFile.Type.ToLowerInvariant() switch
+                        var resolvedType = contentFile.Type.ToLowerInvariant() switch
                         {
-                            "audio" => ModType.Audio,
-                            "sprite" => ModType.Sprite,
-                            "texture" => ModType.Texture,
-                            "bepinexplugin" => ModType.BepInExPlugin,
+                            "audio" => (ModType?)ModType.Audio,
+                            "sprite" => (ModType?)ModType.Sprite,
+                            "texture" => (ModType?)ModType.Texture,
+                            "bepinexplugin" => (ModType?)ModType.BepInExPlugin,
                             _ => DetermineTypeFromExtension(extension)
                         };
+                        if (resolvedType == null)
+                        {
+                            Logger.Log(LogLevel.Warning, $"Skipping '{contentFile.FilePath}': unsupported type '{contentFile.Type}'");
+                            continue;
+                        }
+                        modType = resolvedType.Value;
                     }
                     else
                     {
-                        modType = DetermineTypeFromExtension(extension);
+                        var detectedType = DetermineTypeFromExtension(extension);
+                        if (detectedType == null)
+                        {
+                            Logger.Log(LogLevel.Warning, $"Skipping '{contentFile.FilePath}': unsupported file extension '{extension}'");
+                            continue;
+                        }
+                        modType = detectedType.Value;
                     }
 
                     var modFile = new ModFile
@@ -339,7 +351,7 @@ public class FolderModService
         }
     }
 
-    private ModType DetermineTypeFromExtension(string extension)
+    private ModType? DetermineTypeFromExtension(string extension)
     {
         var audioExtensions = new[] { ".ogg", ".wav", ".mp3", ".m4a" };
         var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
@@ -347,9 +359,9 @@ public class FolderModService
         if (audioExtensions.Contains(extension))
             return ModType.Audio;
         if (imageExtensions.Contains(extension))
-            return ModType.Sprite; // Default to sprite
+            return ModType.Sprite;
 
-        return ModType.Texture;
+        return null;
     }
 
 }

@@ -5,7 +5,6 @@ Made specifically for Resident Evil: Retribution.
 
 ## Features
 
-- **Asset Replacement**: Replace audio, sprites, and textures
 - **Manifest System**: SMAPI-style mod organization with `manifest.json`
 - **BepInEx Integration**: Automatic installation and plugin support
 - **Steam Integration**: Launch game directly through Steam
@@ -49,7 +48,7 @@ mods/
 }
 ```
 
-See [mods/MANIFEST_EXAMPLE.md](mods/MANIFEST_EXAMPLE.md) for complete documentation and examples.
+More detailed manifest documentation and examples will be provided in future updates.
 
 ### Finding Asset Names
 
@@ -79,13 +78,14 @@ The patcher automatically installs BepInEx on first run. You can include BepInEx
   "Name": "My Plugin Mod",
   "UniqueID": "Author.PluginMod",
   "Version": "1.0.0",
-  "BepInExPlugins": [
-    "plugins/MyPlugin.dll"
+  "ContentFiles": [
+    {
+      "FilePath": "plugins/MyPlugin.dll",
+      "Type": "BepInExPlugin"
+    }
   ]
 }
 ```
-
-**Legacy:** Simply place `.dll` files in your mod folder - they will be automatically detected and installed to `BepInEx/plugins`.
 
 ## Restoration
 
