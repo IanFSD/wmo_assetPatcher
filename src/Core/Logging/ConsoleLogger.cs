@@ -42,14 +42,7 @@ public static class Logger {
     private static void WriteToLogs(string content, bool timestamped = true, LogLevel? logLevel = null) {
         var logMessage = timestamped ? $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {content}" : content;
         
-        // Only output to console if console output is enabled
-        if (SettingsService.Current.ConsoleOutput) {
-            if (logLevel.HasValue) {
-                ConsoleService.WriteColoredMessage(logLevel.Value, logMessage);
-            } else {
-                Console.WriteLine(logMessage);
-            }
-        }
+
 
         try {
             lock (LockObject) {
@@ -94,14 +87,5 @@ public static class Logger {
     public static void LogSuccess(string message) => Log(LogLevel.Success, $"{message}");
     public static void LogDebug(string message) => Log(LogLevel.Debug, $"{message}");
     
-    // Special method for console-only output (for user interaction prompts, etc.)
-    public static void WriteConsole(string message, bool addNewLine = true) {
-        if (SettingsService.Current.ConsoleOutput) {
-            if (addNewLine) {
-                ConsoleService.WriteColoredMessage(message);
-            } else {
-                Console.Write(message);
-            }
-        }
-    }
+
 }

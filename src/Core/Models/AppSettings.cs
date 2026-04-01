@@ -20,11 +20,6 @@ public class AppSettings : INotifyPropertyChanged
     // Game version settings
     private GameVersion _gameVersion = GameVersion.FullGame;
     
-    // Legacy console settings properties
-    private bool _allowStartupWithConflicts = false;
-    private bool _isPatched = false;
-    private bool _consoleOutput = true;
-    
     // BepInEx installation status
     private bool _bepInExInstalled = false;
     
@@ -110,33 +105,6 @@ public class AppSettings : INotifyPropertyChanged
         GameVersion.FriendsPass => "2595010",  // Friend's Pass demo version
         _ => "1953230" // Default to full game
     };
-    
-    /// <summary>
-    /// Whether to allow startup even when there are conflicts (legacy console setting)
-    /// </summary>
-    public bool AllowStartupWithConflicts
-    {
-        get => _allowStartupWithConflicts;
-        set => SetProperty(ref _allowStartupWithConflicts, value);
-    }
-    
-    /// <summary>
-    /// Whether the game has been patched (legacy console setting)
-    /// </summary>
-    public bool IsPatched
-    {
-        get => _isPatched;
-        set => SetProperty(ref _isPatched, value);
-    }
-    
-    /// <summary>
-    /// Whether to output logs to console (for console mode)
-    /// </summary>
-    public bool ConsoleOutput
-    {
-        get => _consoleOutput;
-        set => SetProperty(ref _consoleOutput, value);
-    }
     
     /// <summary>
     /// Whether BepInEx is installed in the game directory

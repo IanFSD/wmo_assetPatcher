@@ -32,6 +32,7 @@ public class ModFile
         ModType.Audio => "Audio",
         ModType.Sprite => "Sprite", 
         ModType.Texture => "Texture",
+        ModType.BepInExPlugin => "BepInEx Plugin",
         _ => "Unknown"
     };
     

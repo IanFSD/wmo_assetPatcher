@@ -25,6 +25,20 @@ public static class ConsoleService
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool SetConsoleTitle(string lpConsoleTitle);
     
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool SetConsoleCtrlHandler(ConsoleCtrlDelegate? HandlerRoutine, bool Add);
+    
+    private delegate bool ConsoleCtrlDelegate(CtrlType CtrlType);
+    
+    private enum CtrlType
+    {
+        CTRL_C_EVENT = 0,
+        CTRL_BREAK_EVENT = 1,
+        CTRL_CLOSE_EVENT = 2,
+        CTRL_LOGOFF_EVENT = 5,
+        CTRL_SHUTDOWN_EVENT = 6
+    }
+    
     private const int SW_HIDE = 0;
     private const int SW_SHOW = 5;
     private const int SW_RESTORE = 9;
@@ -33,6 +47,7 @@ public static class ConsoleService
     
     private static bool _consoleAllocated = false;
     private static readonly object _consoleLock = new();
+    private static ConsoleCtrlDelegate? _consoleCtrlHandler;
     
     /// <summary>
     /// Allocate and show a console window
@@ -66,6 +81,10 @@ public static class ConsoleService
                 Console.BackgroundColor = ConsoleColor.Black;
                 Console.ForegroundColor = ConsoleColor.Gray;
                 Console.Clear();
+                
+                // Set up console control handler to prevent closing the app
+                _consoleCtrlHandler = new ConsoleCtrlDelegate(ConsoleCtrlCheck);
+                SetConsoleCtrlHandler(_consoleCtrlHandler, true);
                 
                 return true;
             }
@@ -109,6 +128,21 @@ public static class ConsoleService
         {
             ShowWindow(consoleWindow, visible ? SW_SHOW : SW_HIDE);
         }
+    }
+    
+    /// <summary>
+    /// Console control handler to prevent the console close event from terminating the application
+    /// </summary>
+    private static bool ConsoleCtrlCheck(CtrlType ctrlType)
+    {
+        // Handle close event - just hide the console instead of closing the app
+        if (ctrlType == CtrlType.CTRL_CLOSE_EVENT)
+        {
+            SetConsoleVisibility(false);
+            return true; // Prevent default handler (which would close the app)
+        }
+        
+        return false; // Let other events be handled normally
     }
     
     /// <summary>

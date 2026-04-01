@@ -3,34 +3,96 @@
 An asset patcher for the Survival Horror game **Whisper Mountain Outbreak**.
 Made specifically for Resident Evil: Retribution.  
 
+## Features
+
+- **Manifest System**: SMAPI-style mod organization with `manifest.json`
+- **BepInEx Integration**: Automatic installation and plugin support
+- **Steam Integration**: Launch game directly through Steam
+
 ## Usage
 
-While the patcher is made for RE: Retribution, it could be used for editing any Audio and texture/sprite from the game.
-What you need to do is to add the file you want to add with the name of the asset you want to modify
+### Manifest-Based Mods (Recommended)
 
-- Example: bgm-lobby.ogg will replace the 'bgm-lobby' asset in the game.
-- Example: head-default-0.png will replace the 'head-default-0' sprite.
+Create a mod folder with a `manifest.json` file for better organization and control:
 
-For getting all the asset names, i'll leave it up to you to find it yourself with a tool like [AssetRipper](https://github.com/AssetRipper/AssetRipper)
+```
+mods/
+└── YourMod/
+    ├── manifest.json
+    ├── audio/
+    │   └── custom_music.ogg
+    └── sprites/
+        └── custom_sprite.png
+```
 
-**SUPPORTED FORMATS:**
+**Example manifest.json:**
+```json
+{
+  "Name": "Your Mod Name",
+  "UniqueID": "Author.YourMod",
+  "Version": "1.0.0",
+  "Author": "YourName",
+  "Description": "What your mod does",
+  "ContentFiles": [
+    {
+      "FilePath": "audio/custom_music.ogg",
+      "Target": "bgm-lobby",
+      "Type": "Audio"
+    },
+    {
+      "FilePath": "sprites/custom_sprite.png",
+      "Target": "head-default-0",
+      "Type": "Sprite"
+    }
+  ]
+}
+```
 
-Audio:
+More detailed manifest documentation and examples will be provided in future updates.
 
-- .ogg
+### Finding Asset Names
+
+Use a tool like [AssetRipper](https://github.com/AssetRipper/AssetRipper) to browse the game's assets and find the exact names you want to replace.
+
+## Supported File Types
+
+**Audio:**
+- .ogg (recommended)
 - .wav
 - .mp3 (not recommended)
 
-Sprites/Textures:
+**Sprites/Textures:**
+- .png (recommended)
+- .jpg / .jpeg
 
-- .png
-- .jpg
-- .jpeg
+**Code Mods:**
+- .dll (BepInEx plugins)
 
-After placing your mod files in the `mods` folder, use the interface to select and apply them to the game.
+## BepInEx Plugin Support
 
-**Restoration:**
-For removing the changes made or if u want to restore the game, [Verify](https://help.steampowered.com/en/faqs/view/0C48-FCBD-DA71-93EB) your files on the drop-down menu ==> Properties.
+The patcher automatically installs BepInEx on first run. You can include BepInEx plugins in your mods:
+
+**With manifest:**
+```json
+{
+  "Name": "My Plugin Mod",
+  "UniqueID": "Author.PluginMod",
+  "Version": "1.0.0",
+  "ContentFiles": [
+    {
+      "FilePath": "plugins/MyPlugin.dll",
+      "Type": "BepInExPlugin"
+    }
+  ]
+}
+```
+
+## Restoration
+
+To remove changes and restore the original game:
+1. Open Steam
+2. Right-click the game → Properties
+3. Go to "Installed Files" → "Verify integrity of game files"
 
 ## Build & Compile
 
@@ -59,6 +121,7 @@ For removing the changes made or if u want to restore the game, [Verify](https:/
 
 ## Notes
 
-- Make sure to deactivate Steam cloud
-- You can undo the changes verifying the files on steam.
+- Make sure to deactivate Steam Cloud for the game
+- You can undo changes by verifying files on Steam
+- The patcher will automatically install BepInEx on first run
 - For issues or contributions, please open an issue or pull request
