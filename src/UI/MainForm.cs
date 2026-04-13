@@ -16,6 +16,7 @@ public partial class MainForm : Form
     private readonly FolderModService _folderModService = new();
     private readonly AssetScannerService _assetScannerService = new();
     private bool _isLaunchInProgress = false;
+    private bool _isGameRunning = false;
     private CancellationTokenSource? _scanCancellationSource;
     private CancellationTokenSource? _gameMonitorCts;
 
@@ -138,9 +139,6 @@ public partial class MainForm : Form
             // Add author
             item.SubItems.Add(folderMod.Author ?? "Unknown");
             
-            // Add type summary
-            item.SubItems.Add(folderMod.TypesSummary);
-            
             // Add description
             item.SubItems.Add(folderMod.Description ?? "");
             
@@ -185,7 +183,7 @@ public partial class MainForm : Form
             var gameVersionText = settings.GameVersion == GameVersion.FullGame ? "Full Game" : "Friend's Pass";
             lblGamePathStatus.Text = $"✓ {gameVersionText} (Steam ID: {settings.SteamAppId}) - {gamePath}";
             lblGamePathStatus.ForeColor = Color.Green;
-            btnLaunchGame.Enabled = !_isLaunchInProgress;
+            btnLaunchGame.Enabled = !_isLaunchInProgress && !_isGameRunning;
         }
         else
         {
@@ -253,11 +251,8 @@ public partial class MainForm : Form
                     mod.Status = "Active";
                 }
                 
-                if (pluginCount > 0)
-                {
-                    shouldMonitor = true;
-                    _ = MonitorGameProcessAsync(settings.GamePath!, enabledMods);
-                }
+                shouldMonitor = true;
+                _ = MonitorGameProcessAsync(settings.GamePath!, enabledMods, pluginCount > 0);
             }
             else
             {
@@ -287,7 +282,7 @@ public partial class MainForm : Form
         }
     }
 
-    private async Task MonitorGameProcessAsync(string gameRoot, List<FolderMod> enabledMods)
+    private async Task MonitorGameProcessAsync(string gameRoot, List<FolderMod> enabledMods, bool hasPlugins)
     {
         const string processName = "Whisper Mountain Outbreak";
         const int pollIntervalMs = 2000;
@@ -300,8 +295,7 @@ public partial class MainForm : Form
 
             Invoke(() =>
             {
-                btnLaunchGame.Text = "Game Running...";
-                btnLaunchGame.Enabled = false;
+                SetGameRunningLockState(true);
                 statusLabel.Text = "Waiting for game to start...";
             });
 
@@ -345,8 +339,9 @@ public partial class MainForm : Form
                 Logger.Log(LogLevel.Info, $"Game process exited.");
             }
 
-            // Clean up managed plugins
-            BepInExPluginManager.CleanManagedPlugins(gameRoot);
+            // Clean up managed plugins if any were synced
+            if (hasPlugins)
+                BepInExPluginManager.CleanManagedPlugins(gameRoot);
 
             foreach (var mod in enabledMods)
                 mod.Status = "Ready";
@@ -377,11 +372,22 @@ public partial class MainForm : Form
                 Invoke(() =>
                 {
                     _isLaunchInProgress = false;
-                    btnLaunchGame.Text = "Launch Game";
+                    SetGameRunningLockState(false);
                     UpdateGamePathStatus();
                 });
             }
         }
+    }
+
+    /// <summary>
+    /// Shows or hides the semi-transparent overlay that blocks all interaction while the game is running.
+    /// </summary>
+    private void SetGameRunningLockState(bool locked)
+    {
+        _isGameRunning = locked;
+        pnlGameRunningOverlay.Visible = locked;
+        if (locked)
+            pnlGameRunningOverlay.BringToFront();
     }
 
     private void btnRefreshMods_Click(object sender, EventArgs e)
@@ -619,7 +625,7 @@ public partial class MainForm : Form
         var hasGamePath = !string.IsNullOrEmpty(SettingsService.Current.GamePath) && 
                          GamePathService.ValidateGamePath(SettingsService.Current.GamePath);
         
-        btnScanAssets.Enabled = !isScanning && hasGamePath;
+        btnScanAssets.Enabled = !isScanning && hasGamePath && !_isGameRunning;
         btnScanAssets.Text = isScanning ? "Cancel Scan" : "Scan Assets";
         
         progressAssets.Visible = isScanning;

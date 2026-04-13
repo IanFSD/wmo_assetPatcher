@@ -58,6 +58,10 @@ namespace WMO.UI
         // Status bar
         private StatusStrip statusStrip;
         private ToolStripStatusLabel statusLabel;
+        
+        // Game running overlay
+        private Panel pnlGameRunningOverlay;
+        private Label lblOverlayTitle;
 
         /// <summary>
         /// Clean up any resources being used.
@@ -127,6 +131,9 @@ namespace WMO.UI
             
             this.statusStrip = new StatusStrip();
             this.statusLabel = new ToolStripStatusLabel();
+            
+            this.pnlGameRunningOverlay = new Panel();
+            this.lblOverlayTitle = new Label();
             
             this.menuStrip.SuspendLayout();
             this.tabControl.SuspendLayout();
@@ -211,7 +218,6 @@ namespace WMO.UI
             // Set up columns
             this.lstMods.Columns.Add("Mod Name", 200);
             this.lstMods.Columns.Add("Author", 120);
-            this.lstMods.Columns.Add("Type", 80);
             this.lstMods.Columns.Add("Description", 440);
             
             // 
@@ -618,11 +624,32 @@ namespace WMO.UI
             this.statusLabel.Text = "Ready — Select mods and launch";
             
             // 
+            // pnlGameRunningOverlay
+            // 
+            this.pnlGameRunningOverlay.BackColor = Color.FromArgb(180, 0, 0, 0);
+            this.pnlGameRunningOverlay.Dock = DockStyle.Fill;
+            this.pnlGameRunningOverlay.Visible = false;
+            this.pnlGameRunningOverlay.Name = "pnlGameRunningOverlay";
+            this.pnlGameRunningOverlay.Controls.Add(this.lblOverlayTitle);
+            
+            // 
+            // lblOverlayTitle
+            // 
+            this.lblOverlayTitle.AutoSize = false;
+            this.lblOverlayTitle.Dock = DockStyle.Fill;
+            this.lblOverlayTitle.Font = new Font(this.Font.FontFamily, 22F, FontStyle.Bold);
+            this.lblOverlayTitle.ForeColor = Color.White;
+            this.lblOverlayTitle.TextAlign = ContentAlignment.MiddleCenter;
+            this.lblOverlayTitle.Text = "Game is running...";
+            this.lblOverlayTitle.Name = "lblOverlayTitle";
+            
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
             this.ClientSize = new Size(884, 596);
+            this.Controls.Add(this.pnlGameRunningOverlay);
             this.Controls.Add(this.statusStrip);
             this.Controls.Add(this.tabControl);
             this.Controls.Add(this.menuStrip);

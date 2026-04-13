@@ -49,20 +49,6 @@ public class FolderMod
     public string FormattedTotalSize => FormatFileSize(TotalSize);
     
     /// <summary>
-    /// Gets a summary of mod types contained in this mod
-    /// </summary>
-    public string TypesSummary
-    {
-        get
-        {
-            var types = ModFiles.GroupBy(f => f.Type)
-                               .Select(g => $"{g.Count()} {g.Key}")
-                               .ToArray();
-            return string.Join(", ", types);
-        }
-    }
-    
-    /// <summary>
     /// Gets display text with version and author
     /// </summary>
     public string DisplayInfo
