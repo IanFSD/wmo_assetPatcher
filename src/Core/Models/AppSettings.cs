@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using WMO.Core.Logging;
 using WMO.Core.Models.Enums;
 
 namespace WMO.Core.Models;
@@ -11,7 +10,7 @@ public class AppSettings : INotifyPropertyChanged
 {
     private string? _gamePath;
     private bool _minimizeToTray = false;
-    private LogLevel _logLevel = LogLevel.Info;
+    private bool _showConsole = false;
     private bool _darkMode = false;
     private int _windowWidth = 800;
     private int _windowHeight = 600;
@@ -22,6 +21,9 @@ public class AppSettings : INotifyPropertyChanged
     
     // BepInEx installation status
     private bool _bepInExInstalled = false;
+    
+    // Mod enable/disable state persistence
+    private HashSet<string> _disabledModIds = new();
     
     /// <summary>
     /// Path to the game installation directory
@@ -42,12 +44,12 @@ public class AppSettings : INotifyPropertyChanged
     }
     
     /// <summary>
-    /// Current logging level
+    /// Whether to show a debug console window
     /// </summary>
-    public LogLevel LogLevel
+    public bool ShowConsole
     {
-        get => _logLevel;
-        set => SetProperty(ref _logLevel, value);
+        get => _showConsole;
+        set => SetProperty(ref _showConsole, value);
     }
     
     /// <summary>
@@ -113,6 +115,16 @@ public class AppSettings : INotifyPropertyChanged
     {
         get => _bepInExInstalled;
         set => SetProperty(ref _bepInExInstalled, value);
+    }
+    
+    /// <summary>
+    /// Set of mod UniqueIDs that the user has explicitly disabled.
+    /// All mods not in this set are considered enabled.
+    /// </summary>
+    public HashSet<string> DisabledModIds
+    {
+        get => _disabledModIds;
+        set => SetProperty(ref _disabledModIds, value);
     }
     
     public event PropertyChangedEventHandler? PropertyChanged;

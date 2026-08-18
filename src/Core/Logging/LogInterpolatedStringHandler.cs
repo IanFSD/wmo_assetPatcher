@@ -1,7 +1,5 @@
 using System.Runtime.CompilerServices;
 using System.Text;
-using WMO.Core.Helpers;
-using WMO.Core.Services;
 
 namespace WMO.Core.Logging {
 	[InterpolatedStringHandler]
@@ -9,13 +7,8 @@ namespace WMO.Core.Logging {
 		private readonly StringBuilder? _builder;
 
 		public LogInterpolatedStringHandler(int literalLength, int formattedCount, LogLevel level, out bool shouldAppend) {
-			if (level <= SettingsService.Current.LogLevel && SettingsService.Current.LogLevel != LogLevel.None) {
-				_builder = new StringBuilder(literalLength);
-				shouldAppend = true;
-			} else {
-				_builder = null;
-				shouldAppend = false;
-			}
+			_builder = new StringBuilder(literalLength);
+			shouldAppend = true;
 		}
 
 		public void AppendLiteral(string s) => _builder?.Append(s);

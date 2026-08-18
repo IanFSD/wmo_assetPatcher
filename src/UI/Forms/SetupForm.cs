@@ -1,4 +1,3 @@
-using WMO.Core.Logging;
 using WMO.Core.Services;
 using WMO.Core.Helpers;
 using WMO.Core.Models.Enums;
@@ -12,7 +11,7 @@ public partial class SetupForm : Form
 {
     public string? SelectedGamePath { get; private set; }
     public GameVersion SelectedGameVersion { get; private set; } = GameVersion.FullGame;
-    public LogLevel SelectedLogLevel { get; private set; } = LogLevel.Info;
+    public bool SelectedShowConsole { get; private set; } = false;
 
     public SetupForm()
     {
@@ -28,7 +27,7 @@ public partial class SetupForm : Form
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;
         this.MinimizeBox = false;
-        this.Size = new Size(500, 430);
+        this.Size = new Size(500, 400);
         
         // Show default game path
         txtGamePath.Text = SettingsService.DEFAULT_GAME_PATH;
@@ -37,10 +36,6 @@ public partial class SetupForm : Form
         cmbGameVersion.Items.Add("Full Game");
         cmbGameVersion.Items.Add("Friend's Pass");
         cmbGameVersion.SelectedIndex = 0; // Default to Full Game
-        
-        // Populate log level combo box
-        cmbLogLevel.Items.AddRange(Enum.GetValues<LogLevel>().Cast<object>().ToArray());
-        cmbLogLevel.SelectedItem = LogLevel.Info;
         
         // Check if default path is valid
         CheckDefaultPath();
@@ -108,12 +103,12 @@ public partial class SetupForm : Form
         
         if (btnFinish.Enabled)
         {
-            SelectedLogLevel = (LogLevel)cmbLogLevel.SelectedItem!;
+            SelectedShowConsole = chkShowConsole.Checked;
             SelectedGameVersion = cmbGameVersion.SelectedIndex == 0 ? GameVersion.FullGame : GameVersion.FriendsPass;
             
             // Save initial settings using the unified settings service
             SettingsService.Current.GamePath = SelectedGamePath;
-            SettingsService.Current.LogLevel = SelectedLogLevel;
+            SettingsService.Current.ShowConsole = SelectedShowConsole;
             SettingsService.Current.GameVersion = SelectedGameVersion;
             
             this.DialogResult = DialogResult.OK;
@@ -140,10 +135,5 @@ public partial class SetupForm : Form
             lblPathStatus.ForeColor = Color.Gray;
             btnFinish.Enabled = false;
         }
-    }
-
-    private void cmbLogLevel_SelectedIndexChanged(object sender, EventArgs e)
-    {
-        SelectedLogLevel = (LogLevel)cmbLogLevel.SelectedItem!;
     }
 }

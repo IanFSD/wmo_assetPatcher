@@ -32,6 +32,13 @@ public class FolderMod
     /// Current status of the mod (Ready, Patching, Complete, Error)
     /// </summary>
     public string Status { get; set; } = "Ready";
+
+    /// <summary>
+    /// Online feature impact derived from the AffectsGameplayAttribute in each plugin DLL.
+    /// Populated by FolderModService after DLL inspection. Defaults to NotApplicable until
+    /// inspection completes.
+    /// </summary>
+    public ModOnlineStatus OnlineStatus { get; set; } = ModOnlineStatus.NotApplicable;
     
     /// <summary>
     /// Gets the total number of mod files

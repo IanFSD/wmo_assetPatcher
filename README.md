@@ -1,4 +1,4 @@
-# Whisper Mountain Outbreak AssetPatcher
+# Whisper Mountain Outbreak ModLoader
 
 A Mod loader for the Survival Horror game **Whisper Mountain Outbreak**.
 Made specifically for Resident Evil: Retribution.  
@@ -21,7 +21,7 @@ Made specifically for Resident Evil: Retribution.
     ```bash
     dotnet restore
     ```
-
+    
 3. **Build the project:**
 
     ```bash
@@ -30,7 +30,5 @@ Made specifically for Resident Evil: Retribution.
 
 ## Notes
 
-- Make sure to deactivate Steam Cloud for the game
-- You can undo changes by verifying files on Steam
 - The patcher will automatically install BepInEx on first run
 - For issues or contributions, please open an issue or pull request

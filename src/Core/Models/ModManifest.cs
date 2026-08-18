@@ -60,6 +60,14 @@ public class ModManifest
     /// </summary>
     [JsonPropertyName("ContentFiles")]
     public List<ContentFile>? ContentFiles { get; set; }
+
+    /// <summary>
+    /// MonoBehaviour/ScriptableObject edits and injections.
+    /// MonoBehaviourEdit: overwrite fields on an existing asset by m_Name.
+    /// MonoBehaviourInject: append a brand-new asset into a target .assets file.
+    /// </summary>
+    [JsonPropertyName("AssetEdits")]
+    public List<AssetEdit>? AssetEdits { get; set; }
     
     /// <summary>
     /// Validates the manifest for required fields
@@ -134,6 +142,56 @@ public class ContentFile
     
     /// <summary>
     /// Whether this file is enabled (can be toggled by users)
+    /// </summary>
+    [JsonPropertyName("Enabled")]
+    public bool Enabled { get; set; } = true;
+}
+
+/// <summary>
+/// Represents a MonoBehaviour/ScriptableObject asset edit or injection.
+/// </summary>
+public class AssetEdit
+{
+    /// <summary>
+    /// "MonoBehaviourEdit"  — overwrite fields on an existing asset found by m_Name == Target.
+    /// "MonoBehaviourInject" — append a brand-new asset into the file specified by InjectInto.
+    /// </summary>
+    [JsonPropertyName("Type")]
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>
+    /// For MonoBehaviourEdit: the Unity asset m_Name to find (case-insensitive).
+    /// For MonoBehaviourInject: the m_Name that will be written into the new asset.
+    /// </summary>
+    [JsonPropertyName("Target")]
+    public string? Target { get; set; }
+
+    /// <summary>
+    /// Path to the JSON patch file relative to the mod folder.
+    /// For MonoBehaviourEdit: a flat key→value map of fields to overwrite.
+    /// For MonoBehaviourInject: a full field object matching the MonoBehaviour's type tree
+    ///   (must include "m_Name").
+    /// </summary>
+    [JsonPropertyName("FilePath")]
+    public string FilePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// MonoBehaviourInject only: the script class name used to look up the correct
+    /// MonoScript / type tree (e.g. "SkillScriptableObject").
+    /// </summary>
+    [JsonPropertyName("Script")]
+    public string? Script { get; set; }
+
+    /// <summary>
+    /// MonoBehaviourInject only: filename of the game .assets file to inject into
+    /// (e.g. "sharedassets0.assets"). Matched case-insensitively against file names
+    /// found under the game data directory.
+    /// </summary>
+    [JsonPropertyName("InjectInto")]
+    public string? InjectInto { get; set; }
+
+    /// <summary>
+    /// Whether this edit is enabled (can be toggled by users).
     /// </summary>
     [JsonPropertyName("Enabled")]
     public bool Enabled { get; set; } = true;

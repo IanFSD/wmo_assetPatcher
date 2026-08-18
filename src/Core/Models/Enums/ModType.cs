@@ -8,5 +8,9 @@ public enum ModType
     Audio,
     Sprite, 
     Texture,
-    BepInExPlugin
+    BepInExPlugin,
+    /// <summary>Overwrite fields on an existing MonoBehaviour/ScriptableObject asset.</summary>
+    MonoBehaviourEdit,
+    /// <summary>Append a new MonoBehaviour/ScriptableObject asset into an existing .assets file.</summary>
+    MonoBehaviourInject
 }

@@ -8,20 +8,24 @@ namespace WMO.Core.Helpers;
 /// Manages dynamic BepInEx plugin installation/removal for modded game launches.
 /// Copies DLLs directly into BepInEx/plugins/ and tracks which ones we installed
 /// via a .wmo_managed_plugins file so we never touch user-installed plugins.
+///
+/// When any enabled mod carries ModOnlineStatus.Disabled the companion plugin
+/// (WMOModLoaderCompanion.dll, bundled in Resources/) is also injected so that
+/// ScoreManager.SubmitLeaderboard is patched to no-op for that session.
 /// </summary>
 public static class BepInExPluginManager
 {
-    private const string TrackingFileName = ".wmo_managed_plugins";
+    private const string TrackingFileName    = ".wmo_managed_plugins";
+    private const string CompanionDllName    = "WMOModLoaderCompanion.dll";
+
+    private static string CompanionSourcePath =>
+        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", CompanionDllName);
 
     private static string GetPluginsPath(string gameRoot)
-    {
-        return Path.Combine(gameRoot, "BepInEx", "plugins");
-    }
+        => Path.Combine(gameRoot, "BepInEx", "plugins");
 
     private static string GetTrackingFilePath(string gameRoot)
-    {
-        return Path.Combine(GetPluginsPath(gameRoot), TrackingFileName);
-    }
+        => Path.Combine(GetPluginsPath(gameRoot), TrackingFileName);
 
     /// <summary>
     /// Reads the list of DLL filenames we previously installed.
@@ -50,6 +54,8 @@ public static class BepInExPluginManager
     /// <summary>
     /// Syncs BepInEx plugin DLLs from enabled mods into BepInEx/plugins/.
     /// Copies enabled DLLs and removes any previously tracked DLLs that are no longer selected.
+    /// If any enabled mod has OnlineStatus == Disabled, the companion plugin is also injected
+    /// to disable leaderboard submission for the session.
     /// </summary>
     /// <param name="gameRoot">Path to the game root directory</param>
     /// <param name="enabledMods">List of enabled folder mods</param>
@@ -72,21 +78,34 @@ public static class BepInExPluginManager
                 Logger.Log(LogLevel.Info, $"Created plugins folder: {pluginsPath}");
             }
 
+            var modList = enabledMods.ToList();
+
             // Collect all BepInEx DLL files from enabled mods
             var pluginFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var mod in enabledMods)
+            foreach (var mod in modList)
             {
                 foreach (var modFile in mod.ModFiles.Where(f => f.Type == ModType.BepInExPlugin && f.IsEnabled))
                 {
                     var fileName = Path.GetFileName(modFile.FilePath);
                     if (!pluginFiles.ContainsKey(fileName))
-                    {
                         pluginFiles[fileName] = modFile.FilePath;
-                    }
                     else
-                    {
                         Logger.Log(LogLevel.Warning, $"Duplicate plugin filename '{fileName}' from mod '{mod.Name}' — using first occurrence");
-                    }
+                }
+            }
+
+            // Inject the companion plugin when at least one enabled mod disables online features.
+            bool needsCompanion = modList.Any(m => m.OnlineStatus == ModOnlineStatus.Disabled);
+            if (needsCompanion)
+            {
+                if (File.Exists(CompanionSourcePath))
+                {
+                    pluginFiles[CompanionDllName] = CompanionSourcePath;
+                    Logger.Log(LogLevel.Info, $"[Companion] Gameplay-affecting mod(s) detected — companion plugin will be injected to disable leaderboard.");
+                }
+                else
+                {
+                    Logger.Log(LogLevel.Warning, $"[Companion] Companion DLL not found at '{CompanionSourcePath}' — leaderboard will NOT be disabled.");
                 }
             }
 
@@ -125,7 +144,7 @@ public static class BepInExPluginManager
             // Update the tracking file with the current set
             WriteTrackedPlugins(gameRoot, pluginFiles.Keys);
 
-            Logger.Log(LogLevel.Success, $"Synced {installedCount} BepInEx plugin(s)");
+            Logger.Log(LogLevel.Success, $"Synced {installedCount} BepInEx plugin(s){(needsCompanion ? " (companion injected — leaderboard disabled)" : "")}");
             return installedCount;
         }
         catch (Exception ex)

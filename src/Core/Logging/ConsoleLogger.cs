@@ -41,8 +41,6 @@ public static class Logger {
 
     private static void WriteToLogs(string content, bool timestamped = true, LogLevel? logLevel = null) {
         var logMessage = timestamped ? $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {content}" : content;
-        
-
 
         try {
             lock (LockObject) {
@@ -52,6 +50,12 @@ public static class Logger {
                 _logMessages.Add(logMessage);
                 LogMessageAdded?.Invoke(logMessage);
                 LogReceived?.Invoke(null, logMessage);
+
+                // Mirror to console window when it is open
+                if (logLevel.HasValue)
+                    ConsoleService.WriteColoredMessage(logLevel.Value, logMessage);
+                else
+                    ConsoleService.WriteColoredMessage(logMessage);
 
                 var installLogPath = GetInstallLogPath();
                 if (installLogPath == null) return;
@@ -65,9 +69,6 @@ public static class Logger {
 
     public static void Log(LogLevel lvl, [InterpolatedStringHandlerArgument("lvl")] LogInterpolatedStringHandler handler)
     {
-        if (lvl > SettingsService.Current.LogLevel || SettingsService.Current.LogLevel == LogLevel.None)
-            return;
-
         WriteToLogs($"{lvl.ToString().ToUpper()}: {handler.ToString()}", timestamped: true, logLevel: lvl);
     }
     
@@ -76,7 +77,6 @@ public static class Logger {
     }
 
     public static void LogLineBreak(LogLevel lvl) {
-        if (lvl > SettingsService.Current.LogLevel || SettingsService.Current.LogLevel == LogLevel.None) return;
         WriteToLogs(string.Empty, timestamped: false);
     }
     

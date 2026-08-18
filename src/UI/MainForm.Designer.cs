@@ -17,8 +17,7 @@ namespace WMO.UI
         private TabPage tabSettings;
         private GroupBox grpGeneral;
         private GroupBox grpLogging;
-        private ComboBox cmbLogLevel;
-        private Label lblLogLevel;
+        private CheckBox chkShowConsole;
         private GroupBox grpInterface;
         private CheckBox chkRememberWindowSize;
         private CheckBox chkDarkMode;
@@ -99,8 +98,7 @@ namespace WMO.UI
             this.lblGameVersion = new Label();
             this.cmbGameVersion = new ComboBox();
             this.grpLogging = new GroupBox();
-            this.lblLogLevel = new Label();
-            this.cmbLogLevel = new ComboBox();
+            this.chkShowConsole = new CheckBox();
             this.grpInterface = new GroupBox();
             this.chkRememberWindowSize = new CheckBox();
             this.chkDarkMode = new CheckBox();
@@ -217,8 +215,9 @@ namespace WMO.UI
             
             // Set up columns
             this.lstMods.Columns.Add("Mod Name", 200);
-            this.lstMods.Columns.Add("Author", 120);
-            this.lstMods.Columns.Add("Description", 440);
+            this.lstMods.Columns.Add("Author", 100);
+            this.lstMods.Columns.Add("Online Status", 110);
+            this.lstMods.Columns.Add("Description", 330);
             
             // 
             // lblModCount
@@ -542,41 +541,30 @@ namespace WMO.UI
             // 
             // grpLogging
             // 
-            this.grpLogging.Controls.Add(this.lblLogLevel);
-            this.grpLogging.Controls.Add(this.cmbLogLevel);
+            this.grpLogging.Controls.Add(this.chkShowConsole);
             this.grpLogging.Location = new Point(6, 120);
             this.grpLogging.Name = "grpLogging";
-            this.grpLogging.Size = new Size(840, 70);
+            this.grpLogging.Size = new Size(840, 50);
             this.grpLogging.TabIndex = 1;
             this.grpLogging.TabStop = false;
-            this.grpLogging.Text = "Logging Settings";
+            this.grpLogging.Text = "Console";
             
             // 
-            // lblLogLevel
+            // chkShowConsole
             // 
-            this.lblLogLevel.AutoSize = true;
-            this.lblLogLevel.Location = new Point(10, 25);
-            this.lblLogLevel.Name = "lblLogLevel";
-            this.lblLogLevel.Size = new Size(62, 15);
-            this.lblLogLevel.TabIndex = 0;
-            this.lblLogLevel.Text = "Log Level:";
-            
-            // 
-            // cmbLogLevel
-            // 
-            this.cmbLogLevel.DropDownStyle = ComboBoxStyle.DropDownList;
-            this.cmbLogLevel.FormattingEnabled = true;
-            this.cmbLogLevel.Location = new Point(80, 22);
-            this.cmbLogLevel.Name = "cmbLogLevel";
-            this.cmbLogLevel.Size = new Size(150, 23);
-            this.cmbLogLevel.TabIndex = 1;
+            this.chkShowConsole.AutoSize = true;
+            this.chkShowConsole.Location = new Point(10, 22);
+            this.chkShowConsole.Name = "chkShowConsole";
+            this.chkShowConsole.TabIndex = 0;
+            this.chkShowConsole.Text = "Show debug console";
+            this.chkShowConsole.UseVisualStyleBackColor = true;
             
             // 
             // grpInterface
             // 
             this.grpInterface.Controls.Add(this.chkRememberWindowSize);
             this.grpInterface.Controls.Add(this.chkDarkMode);
-            this.grpInterface.Location = new Point(6, 200);
+            this.grpInterface.Location = new Point(6, 180);
             this.grpInterface.Name = "grpInterface";
             this.grpInterface.Size = new Size(840, 80);
             this.grpInterface.TabIndex = 2;

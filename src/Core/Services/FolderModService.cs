@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using WMO.Core.Models;
 using WMO.Core.Models.Enums;
 using WMO.Core.Logging;
+using WMO.Core.Helpers;
 using System.Text.Json;
 
 namespace WMO.Core.Services;
@@ -341,6 +342,11 @@ public class FolderModService
                 folderMod.ModFiles.Add(modFile);
             }
 
+            // Determine online status by inspecting each BepInEx plugin DLL for
+            // the AffectsGameplayAttribute. A single gameplay-affecting DLL is
+            // enough to mark the whole mod as Disabled.
+            folderMod.OnlineStatus = ComputeOnlineStatus(folderMod);
+
             Logger.Log(LogLevel.Success, $"Loaded manifest-based mod '{manifest.Name}' with {modFiles.Count} files");
             return folderMod;
         }
@@ -349,6 +355,34 @@ public class FolderModService
             Logger.Log(LogLevel.Error, $"Error loading manifest-based mod from {folderPath}: {ex.Message}");
             return null;
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Online status helpers
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Inspects every BepInEx plugin DLL in <paramref name="mod"/> and returns:
+    ///   NotApplicable — mod has no plugin DLLs (audio/texture-only)
+    ///   Disabled      — at least one DLL has AffectsGameplay=true (or attribute absent)
+    ///   Approved      — all DLLs explicitly carry AffectsGameplay=false
+    /// </summary>
+    private static ModOnlineStatus ComputeOnlineStatus(FolderMod mod)
+    {
+        var pluginFiles = mod.ModFiles
+            .Where(f => f.Type == ModType.BepInExPlugin)
+            .ToList();
+
+        if (pluginFiles.Count == 0)
+            return ModOnlineStatus.NotApplicable;
+
+        foreach (var file in pluginFiles)
+        {
+            if (DllInspector.AffectsGameplay(file.FilePath))
+                return ModOnlineStatus.Disabled;
+        }
+
+        return ModOnlineStatus.Approved;
     }
 
     private ModType? DetermineTypeFromExtension(string extension)
@@ -362,6 +396,91 @@ public class FolderModService
             return ModType.Sprite;
 
         return null;
+    }
+
+    // -------------------------------------------------------------------------
+    // Dependency helpers
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Returns the loaded mods that are required dependencies of <paramref name="mod"/>.
+    /// Only considers dependencies where <see cref="ModDependency.IsRequired"/> is true.
+    /// Mods not found in <see cref="AvailableMods"/> are silently skipped (they will be
+    /// caught by <see cref="ValidateDependencies"/> instead).
+    /// </summary>
+    public IEnumerable<FolderMod> GetDependencies(FolderMod mod)
+    {
+        var deps = mod.Manifest?.Dependencies;
+        if (deps == null || deps.Count == 0)
+            yield break;
+
+        foreach (var dep in deps)
+        {
+            if (!dep.IsRequired) continue;
+            var found = _availableMods.FirstOrDefault(m =>
+                string.Equals(m.UniqueID, dep.UniqueID, StringComparison.OrdinalIgnoreCase));
+            if (found != null)
+                yield return found;
+        }
+    }
+
+    /// <summary>
+    /// Returns the currently-enabled loaded mods that declare <paramref name="mod"/>
+    /// as a required dependency. Used to warn before disabling a mod.
+    /// </summary>
+    public IEnumerable<FolderMod> GetDependents(FolderMod mod)
+    {
+        foreach (var candidate in _availableMods)
+        {
+            if (!candidate.IsEnabled) continue;
+            if (ReferenceEquals(candidate, mod)) continue;
+
+            var deps = candidate.Manifest?.Dependencies;
+            if (deps == null) continue;
+
+            bool dependsOnMod = deps.Any(d =>
+                d.IsRequired &&
+                string.Equals(d.UniqueID, mod.UniqueID, StringComparison.OrdinalIgnoreCase));
+
+            if (dependsOnMod)
+                yield return candidate;
+        }
+    }
+
+    /// <summary>
+    /// Validates that every enabled mod has all its required dependencies enabled.
+    /// Returns a list of human-readable error strings. An empty list means everything is OK.
+    /// </summary>
+    public List<string> ValidateDependencies()
+    {
+        var errors = new List<string>();
+
+        foreach (var mod in _availableMods)
+        {
+            if (!mod.IsEnabled) continue;
+
+            var deps = mod.Manifest?.Dependencies;
+            if (deps == null || deps.Count == 0) continue;
+
+            foreach (var dep in deps)
+            {
+                if (!dep.IsRequired) continue;
+
+                var depMod = _availableMods.FirstOrDefault(m =>
+                    string.Equals(m.UniqueID, dep.UniqueID, StringComparison.OrdinalIgnoreCase));
+
+                if (depMod == null)
+                {
+                    errors.Add($"• \"{mod.Name}\" requires \"{dep.UniqueID}\" which is not installed.");
+                }
+                else if (!depMod.IsEnabled)
+                {
+                    errors.Add($"• \"{mod.Name}\" requires \"{depMod.Name}\" but it is disabled.");
+                }
+            }
+        }
+
+        return errors;
     }
 
 }

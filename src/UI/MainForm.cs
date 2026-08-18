@@ -15,8 +15,10 @@ public partial class MainForm : Form
 {
     private readonly FolderModService _folderModService = new();
     private readonly AssetScannerService _assetScannerService = new();
+    private readonly AssetPatcherService _assetPatcherService = new();
     private bool _isLaunchInProgress = false;
     private bool _isGameRunning = false;
+    private bool _suppressItemChecked = false;
     private CancellationTokenSource? _scanCancellationSource;
     private CancellationTokenSource? _gameMonitorCts;
 
@@ -54,20 +56,20 @@ public partial class MainForm : Form
         // Initialize settings controls
         InitializeSettingsControls();
         
+        // Open console window if the setting is already enabled
+        if (SettingsService.Current.ShowConsole)
+            ConsoleService.AllocateConsole();
+        
         // Update status
         UpdateGamePathStatus();
+
+        // Restore originals if previous session patched audio but didn't clean up.
+        _ = RestoreStaleAudioPatchAsync();
     }
 
     private void InitializeSettingsControls()
     {
         var settings = SettingsService.Current;
-        
-        // Populate log level combo box
-        cmbLogLevel.Items.Clear();
-        foreach (LogLevel level in Enum.GetValues<LogLevel>())
-        {
-            cmbLogLevel.Items.Add(level);
-        }
         
         // Populate game version combo box
         cmbGameVersion.Items.Clear();
@@ -81,7 +83,7 @@ public partial class MainForm : Form
         txtGamePath.TextChanged += TxtGamePath_TextChanged;
         btnBrowseGamePath.Click += BtnBrowseGamePath_Click;
         cmbGameVersion.SelectedIndexChanged += CmbGameVersion_SelectedIndexChanged;
-        cmbLogLevel.SelectedIndexChanged += CmbLogLevel_SelectedIndexChanged;
+        chkShowConsole.CheckedChanged += ChkShowConsole_CheckedChanged;
         chkRememberWindowSize.CheckedChanged += ChkRememberWindowSize_CheckedChanged;
         chkDarkMode.CheckedChanged += ChkDarkMode_CheckedChanged;
     }
@@ -92,7 +94,7 @@ public partial class MainForm : Form
         
         txtGamePath.Text = settings.GamePath ?? "";
         cmbGameVersion.SelectedIndex = (int)settings.GameVersion;
-        cmbLogLevel.SelectedItem = settings.LogLevel;
+        chkShowConsole.Checked = settings.ShowConsole;
         chkRememberWindowSize.Checked = settings.RememberWindowSize;
         chkDarkMode.Checked = settings.DarkMode;
     }
@@ -106,6 +108,15 @@ public partial class MainForm : Form
             await _folderModService.RefreshModsAsync();
             
             Logger.Log(LogLevel.Info, $"Loaded {_folderModService.AvailableMods.Count} mods total");
+
+            // Restore the user's saved enable/disable selections.
+            // Mods are enabled by default; only those explicitly in DisabledModIds are unchecked.
+            var disabledIds = SettingsService.Current.DisabledModIds;
+            foreach (var mod in _folderModService.AvailableMods)
+            {
+                if (!string.IsNullOrEmpty(mod.UniqueID))
+                    mod.IsEnabled = !disabledIds.Contains(mod.UniqueID);
+            }
             
             // Update the mods list in UI
             UpdateModsList();
@@ -124,31 +135,45 @@ public partial class MainForm : Form
         
         foreach (var folderMod in _folderModService.AvailableMods)
         {
-            // Create display name with version
             var displayName = folderMod.Name;
-            
             if (!string.IsNullOrEmpty(folderMod.Version))
                 displayName += $" v{folderMod.Version}";
             
+            var (statusText, statusColor) = folderMod.OnlineStatus switch
+            {
+                WMO.Core.Models.Enums.ModOnlineStatus.Approved     => ("✔ Approved",  Color.FromArgb(0, 150, 60)),
+                WMO.Core.Models.Enums.ModOnlineStatus.Disabled     => ("✖ Disabled",  Color.FromArgb(180, 40, 40)),
+                WMO.Core.Models.Enums.ModOnlineStatus.NotApplicable => ("— N/A",       Color.Gray),
+                _                                                    => ("— N/A",       Color.Gray),
+            };
+
             var item = new ListViewItem(displayName)
             {
-                Tag = folderMod,
+                Tag     = folderMod,
                 Checked = folderMod.IsEnabled
             };
-            
-            // Add author
+
             item.SubItems.Add(folderMod.Author ?? "Unknown");
-            
-            // Add description
+
+            // Online Status sub-item — coloured via DrawSubItems (OwnerDraw not set,
+            // so we store the colour on the item itself and apply it in a custom draw
+            // or simply set the ForeColor on the item for the entire row).
+            // WinForms ListView does not support per-cell forecolour without OwnerDraw,
+            // so we set the item ForeColor to the status colour when the mod is enabled.
+            var statusSubItem = new ListViewItem.ListViewSubItem(item, statusText);
+            item.SubItems.Add(statusSubItem);
+
             item.SubItems.Add(folderMod.Description ?? "");
-            
+
+            // Colour the whole row based on online impact (only when enabled).
+            if (folderMod.IsEnabled)
+                item.ForeColor = statusColor;
+
             lstMods.Items.Add(item);
         }
         
         lblModCount.Text = $"Available Mods ({_folderModService.AvailableMods.Count})";
         UpdateModSummary();
-        
-        // Resize description column to fill available space
         ResizeDescriptionColumn();
     }
 
@@ -193,7 +218,22 @@ public partial class MainForm : Form
         }
     }
 
-    private void btnLaunchGame_Click(object sender, EventArgs e)
+    /// <summary>
+    /// Restores any game audio files patched in a previous session but never
+    /// restored (e.g. patcher was force-closed while the game was running).
+    /// Runs silently at startup - only logs; no UI blocking.
+    /// </summary>
+    private async Task RestoreStaleAudioPatchAsync()
+    {
+        if (!AssetPatcherService.HasStaleManifest()) return;
+
+        Logger.Log(LogLevel.Info, $"[AssetPatcher] Stale manifest - restoring audio from previous session");
+
+        string result = await _assetPatcherService.RestoreOriginalsAsync();
+        Logger.Log(LogLevel.Info, $"[AssetPatcher] Stale restore: {result}");
+    }
+
+    private async void btnLaunchGame_Click(object sender, EventArgs e)
     {
         if (_isLaunchInProgress) return;
         
@@ -203,6 +243,20 @@ public partial class MainForm : Form
         {
             _isLaunchInProgress = true;
             UpdateGamePathStatus();
+
+            // Validate dependencies before doing anything else
+            var depErrors = _folderModService.ValidateDependencies();
+            if (depErrors.Count > 0)
+            {
+                MessageBox.Show(
+                    "Cannot launch: some enabled mods have unmet dependencies.\n\n" +
+                    string.Join("\n", depErrors) +
+                    "\n\nEnable the required mods or disable the mods that depend on them.",
+                    "Dependency Check Failed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
             
             var settings = SettingsService.Current;
             
@@ -240,6 +294,11 @@ public partial class MainForm : Form
                 BepInExPluginManager.CleanManagedPlugins(settings.GamePath!);
             }
             
+            // Patch audio and texture assets declared by enabled mods (no-op if none).
+            var patchResult = await _assetPatcherService.PatchAssetsAsync(
+                settings.GamePath!, enabledMods);
+            Logger.Log(LogLevel.Info, $"[AssetPatcher] {patchResult}");
+
             // Launch the game through Steam
             Logger.Log(LogLevel.Info, $"Launching game through Steam (App ID: {settings.SteamAppId}, Version: {settings.GameVersion})");
             bool success = GamePathService.LaunchGameThroughSteam(settings.SteamAppId);
@@ -343,6 +402,10 @@ public partial class MainForm : Form
             if (hasPlugins)
                 BepInExPluginManager.CleanManagedPlugins(gameRoot);
 
+            // Restore any patched audio assets to their originals.
+            var restoreResult = await _assetPatcherService.RestoreOriginalsAsync();
+            Logger.Log(LogLevel.Info, $"[AssetPatcher] {restoreResult}");
+
             foreach (var mod in enabledMods)
                 mod.Status = "Ready";
 
@@ -409,12 +472,93 @@ public partial class MainForm : Form
 
     private void lstMods_ItemChecked(object sender, ItemCheckedEventArgs e)
     {
-        if (e.Item?.Tag is FolderMod folderMod)
+        if (_suppressItemChecked) return;
+        if (e.Item?.Tag is not FolderMod folderMod) return;
+
+        var settings = SettingsService.Current;
+
+        if (e.Item.Checked)
         {
-            folderMod.IsEnabled = e.Item.Checked;
+            // Enable the mod
+            folderMod.IsEnabled = true;
+            if (!string.IsNullOrEmpty(folderMod.UniqueID))
+                settings.DisabledModIds.Remove(folderMod.UniqueID);
+
+            // Auto-enable required dependencies that are not yet checked
+            _suppressItemChecked = true;
+            try
+            {
+                foreach (var dep in _folderModService.GetDependencies(folderMod))
+                {
+                    if (dep.IsEnabled) continue;
+
+                    dep.IsEnabled = true;
+                    if (!string.IsNullOrEmpty(dep.UniqueID))
+                        settings.DisabledModIds.Remove(dep.UniqueID);
+
+                    // Reflect in the ListView
+                    foreach (ListViewItem item in lstMods.Items)
+                    {
+                        if (ReferenceEquals(item.Tag, dep))
+                        {
+                            item.Checked = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _suppressItemChecked = false;
+            }
         }
-        
-        // Update summary and launch button state
+        else
+        {
+            // Disable the mod and cascade-disable all dependents recursively
+            _suppressItemChecked = true;
+            try
+            {
+                var toDisable = new Queue<FolderMod>();
+                var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                toDisable.Enqueue(folderMod);
+
+                while (toDisable.Count > 0)
+                {
+                    var current = toDisable.Dequeue();
+                    if (!string.IsNullOrEmpty(current.UniqueID) && !visited.Add(current.UniqueID))
+                        continue;
+
+                    current.IsEnabled = false;
+                    if (!string.IsNullOrEmpty(current.UniqueID))
+                        settings.DisabledModIds.Add(current.UniqueID);
+
+                    // Reflect in the ListView
+                    foreach (ListViewItem item in lstMods.Items)
+                    {
+                        if (ReferenceEquals(item.Tag, current))
+                        {
+                            item.Checked = false;
+                            break;
+                        }
+                    }
+
+                    // Enqueue any enabled mods that depended on this one
+                    foreach (var dependent in _folderModService.GetDependents(current))
+                    {
+                        if (dependent.IsEnabled)
+                            toDisable.Enqueue(dependent);
+                    }
+                }
+            }
+            finally
+            {
+                _suppressItemChecked = false;
+            }
+        }
+
+        // Trigger a save by raising PropertyChanged on the settings object
+        settings.DisabledModIds = settings.DisabledModIds; // reassign to fire the setter
+
         UpdateModSummary();
         UpdateGamePathStatus();
     }
@@ -439,12 +583,14 @@ public partial class MainForm : Form
     {
         if (lstMods.Columns.Count >= 4)
         {
-            // Calculate available width (subtract width of first three columns + checkbox space)
-            int availableWidth = lstMods.ClientSize.Width - lstMods.Columns[0].Width - lstMods.Columns[1].Width - lstMods.Columns[2].Width - 25;
+            // Description is column 3; subtract Name + Author + OnlineStatus widths + checkbox space
+            int availableWidth = lstMods.ClientSize.Width
+                - lstMods.Columns[0].Width
+                - lstMods.Columns[1].Width
+                - lstMods.Columns[2].Width
+                - 25;
             if (availableWidth > 100)
-            {
                 lstMods.Columns[3].Width = availableWidth;
-            }
         }
     }
 
@@ -502,12 +648,13 @@ public partial class MainForm : Form
         }
     }
 
-    private void CmbLogLevel_SelectedIndexChanged(object? sender, EventArgs e)
+    private void ChkShowConsole_CheckedChanged(object? sender, EventArgs e)
     {
-        if (cmbLogLevel.SelectedItem is LogLevel level)
-        {
-            SettingsService.Current.LogLevel = level;
-        }
+        SettingsService.Current.ShowConsole = chkShowConsole.Checked;
+        if (chkShowConsole.Checked)
+            ConsoleService.AllocateConsole();
+        else
+            ConsoleService.FreeConsoleWindow();
     }
 
     private void CmbGameVersion_SelectedIndexChanged(object? sender, EventArgs e)
